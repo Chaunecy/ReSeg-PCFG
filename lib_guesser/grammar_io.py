@@ -48,31 +48,30 @@ import codecs
 #    ruleset_info: A dictionary containing general information about the ruleset
 #
 def load_grammar(rule_name, base_directory, version, skip_brute, skip_case, base_structure_folder):
-
     # Holds general information about the grammar
     ruleset_info = {
-        'rule_name':rule_name,
+        'rule_name': rule_name,
         'version': version
     }
-  
+
     config = configparser.ConfigParser()
     if not _load_config(ruleset_info, base_directory, config):
         raise Exception
-        
+
     # Holds all of the grammar with the exception of the base structures and
     # OMEN probabilities    
     grammar = {}
-    
+
     if not _load_terminals(ruleset_info, grammar, base_directory, config, skip_case):
         raise Exception
-        
+
     # Holds the base structures
     base_structures = []
     if not _load_base_structures(base_structures, base_directory, skip_brute, base_structure_folder):
         raise Exception
-    
+
     return grammar, base_structures, ruleset_info
-    
+
 
 ## Loads the OMEN keyspace information from file
 #
@@ -91,26 +90,24 @@ def load_grammar(rule_name, base_directory, version, skip_brute, skip_case, base
 #                   {'1':5000, '2':300012, '3':981138888}
 #    
 def load_omen_keyspace(base_directory):
-    filename = os.path.join(base_directory,"Omen","omen_keyspace.txt")
+    filename = os.path.join(base_directory, "Omen", "omen_keyspace.txt")
 
     omen_keyspace = {}
-    
+
     # Try to open the file
     with open(filename, 'r') as file:
         # Read though all the lines in the file
         for value in file:
-        
             # Split up the tab seperated items and then save their values
-            split_values = value.rstrip().split("\t") 
-            
+            split_values = value.rstrip().split("\t")
+
             level = int(split_values[0])
             keyspace = int(split_values[1])
-            
+
             omen_keyspace[level] = keyspace
-    
-    return omen_keyspace    
-                
-                
+
+    return omen_keyspace
+
 
 ## Loads the base structures for the grammar
 #
@@ -137,50 +134,49 @@ def load_omen_keyspace(base_directory):
 #    False: Config failed to load 
 #
 def _load_base_structures(base_structures, base_directory, skip_brute, base_structure_folder):
-    
-    filename = os.path.join(base_directory,base_structure_folder,"grammar.txt")
-    
+    filename = os.path.join(base_directory, base_structure_folder, "grammar.txt")
+
     # Try to open the file
     try:
         with open(filename, 'r') as file:
-        
+
             # If skip_brute is enabled, find out what probability is
             # assigned to brute force guesses if any
-            
+
             # This is the maximum probability the grammar is compared against
             # Need to specify this because if we remove brute force structures
             # the total prob needs to be reduced so everything else can be
             # normalized against the new total prob.
-            total_prob= 1.0
-            
+            total_prob = 1.0
+
             if skip_brute:
                 for value in file:
                     # Split up the tab seperated items and then save their values
-                    split_values = value.rstrip().split("\t") 
-                    
+                    split_values = value.rstrip().split("\t")
+
                     # Found the brute force section, record probabilty and break
                     # out of the loop
                     if split_values[0] == 'M':
                         total_prob = total_prob - float(split_values[1])
-                        
+
                         # Reset the file pointer and exit
                         file.seek(0)
                         break
-            
+
             # Read though all the lines in the file
             for value in file:
-            
+
                 # Split up the tab seperated items and then save their values
-                split_values = value.rstrip().split("\t") 
-                
+                split_values = value.rstrip().split("\t")
+
                 value = split_values[0]
                 prob = float(split_values[1]) / total_prob
-                
+
                 new_base = {
-                    'prob':prob,
-                    'replacements':[]
+                    'prob': prob,
+                    'replacements': []
                 }
-                
+
                 ## Split up the replacements and save them
                 #
                 # Note, splitting on digits, and all transistions are only
@@ -190,40 +186,39 @@ def _load_base_structures(base_structures, base_directory, skip_brute, base_stru
                         new_base['replacements'].append(item)
                     else:
                         new_base['replacements'][-1] += item
-                
+
                 # Save the base structure
                 #
                 # Note if we are skipping Markov attacks, don't save that 
                 if not skip_brute or 'M' not in new_base['replacements']:
-                    base_structures.append(new_base)             
-            
+                    base_structures.append(new_base)
+
     except IOError as error:
-        print (error,file=sys.stderr)
-        print ("Error opening file " + filename ,file=sys.stderr)
+        print(error, file=sys.stderr)
+        print("Error opening file " + filename, file=sys.stderr)
         return False
-        
+
     except Exception as error:
-        print (error,file=sys.stderr)
+        print(error, file=sys.stderr)
         return False
-        
+
     ## Add in case mangling to all the alpha characters
     for base in base_structures:
         replacement = base['replacements']
-        
-        i=0
+
+        i = 0
         while i < len(replacement):
             # It is an alpha string
             if replacement[i][0] == 'A':
                 # Find the length of the alpha string, (though it is a string)
                 len_str = replacement[i][1:]
                 # Insert the case mangling
-                replacement.insert(i+1,'C' + len_str)
-        
+                replacement.insert(i + 1, 'C' + len_str)
+
             i += 1
-            
 
     return True
-    
+
 
 ## Loads most of the terminals for the grammar
 #
@@ -250,21 +245,20 @@ def _load_base_structures(base_structures, base_directory, skip_brute, base_stru
 #    False: Config failed to load 
 #
 def _load_terminals(ruleset_info, grammar, base_directory, config, skip_case):
-
     # Quick way to reference variables
     encoding = ruleset_info['encoding']
-    
+
     # Load the alpha terminals
     if not _load_from_multiple_files(grammar, config['BASE_A'], base_directory, encoding):
         print("Error loading alpha terminals")
         return False
-        
+
     # Load the capitalziaton masks, (if the user wants to apply case mangling)
     if not skip_case:
         if not _load_from_multiple_files(grammar, config['CAPITALIZATION'], base_directory, encoding):
             print("Error loading capitalization masks")
             return False
-            
+
     # If the user only wants to generate lowercase guesses
     else:
         filenames = json.loads(config['CAPITALIZATION'].get('filenames'))
@@ -272,54 +266,54 @@ def _load_terminals(ruleset_info, grammar, base_directory, config, skip_case):
             name = config['CAPITALIZATION'].get('name') + file.split('.')[0]
             length = int(file.split('.')[0])
             item = {
-                        'values': ['L'*length],
-                        'prob': 1.0
-                    }
+                'values': ['L' * length],
+                'prob': 1.0
+            }
             grammar[name] = [item]
-        
+
     # Load the digit terminals
     if not _load_from_multiple_files(grammar, config['BASE_D'], base_directory, encoding):
         print("Error loading digit terminals")
         return False
-        
+
     # Load the 'other' terminals
     if not _load_from_multiple_files(grammar, config['BASE_O'], base_directory, encoding):
         print("Error loading other/special terminals")
         return False
-        
+
     # Load the keyboard terminals
     if not _load_from_multiple_files(grammar, config['BASE_K'], base_directory, encoding):
         print("Error loading keyboard terminals")
         return False
-    
+
     # Load the years
     if not _load_from_multiple_files(grammar, config['BASE_Y'], base_directory, encoding):
         print("Error loading year terminals")
         return False
-    
+
     # Load Context Sensitive replacements
     if not _load_from_multiple_files(grammar, config['BASE_X'], base_directory, encoding):
         print("Error loading context sensitive terminals")
-        return False  
+        return False
 
-    # Load OMEN level probabilities
+        # Load OMEN level probabilities
     full_path = os.path.join(base_directory, "Omen", "pcfg_omen_prob.txt")
-    grammar['M'] = []     
+    grammar['M'] = []
     if not _load_from_file(grammar['M'], full_path, encoding):
         return False
-        
+
     # Load e-mail replacements
     full_path = os.path.join(base_directory, "Emails", "email_providers.txt")
     grammar['E'] = []
     if not _load_from_file(grammar['E'], full_path, encoding):
         return False
-        
+
     # Load website replacements
     full_path = os.path.join(base_directory, "Websites", "website_hosts.txt")
     grammar['W'] = []
     if not _load_from_file(grammar['W'], full_path, encoding):
         return False
-        
+
     return True
 
 
@@ -340,44 +334,45 @@ def _load_terminals(ruleset_info, grammar, base_directory, config, skip_case):
 #    False: Config failed to load
 #
 def _load_config(ruleset_info, base_directory, config):
-
     # Attempt to read the config from disk
     try:
-        config.readfp(open(os.path.join(base_directory,"config.ini")))
-        
+        config.readfp(open(os.path.join(base_directory, "config.ini")))
+
         ## Check the version
         #
-        ruleset_info['rule_version'] = config.get('TRAINING_PROGRAM_DETAILS','version')
-        
+        ruleset_info['rule_version'] = config.get('TRAINING_PROGRAM_DETAILS', 'version')
+
         # Only checking to make sure the Major version is higher, as I haven'tart
         # made any changes yet that will invalidate using a ruleset from a minor
         # release        
         major_guesser = ruleset_info['version'].split('.')[0]
         major_rule = ruleset_info['rule_version'].split('.')[0]
-        
+
         if major_guesser > major_rule:
-            print("The ruleset you are attempting to run is not compatible with this version of the pfcg_guesser",file=sys.stderr)
-            print("PCFG_Guesser Version: " + str(ruleset_info['version']),file=sys.stderr)
-            print("Ruleset Version: " + str(ruleset_info['rule_version']),file=sys.stderr)
+            print("The ruleset you are attempting to run is not compatible with this version of the pfcg_guesser",
+                  file=sys.stderr)
+            print("PCFG_Guesser Version: " + str(ruleset_info['version']), file=sys.stderr)
+            print("Ruleset Version: " + str(ruleset_info['rule_version']), file=sys.stderr)
             return False
-        
+
         # Find the encoding for the config file
-        ruleset_info['encoding'] = config.get('TRAINING_DATASET_DETAILS','encoding')
-        
+        ruleset_info['encoding'] = config.get('TRAINING_DATASET_DETAILS', 'encoding')
+
         # Get the UUID to aid in saving/restarting cracking sessions
-        ruleset_info['uuid'] = config.get('TRAINING_DATASET_DETAILS','uuid')
-        
+        ruleset_info['uuid'] = config.get('TRAINING_DATASET_DETAILS', 'uuid')
+
     except IOError as msg:
-        print("Could not open the config file for the ruleset specified. The rule directory may not exist",file=sys.stderr)
+        print("Could not open the config file for the ruleset specified. The rule directory may not exist",
+              file=sys.stderr)
         print("Ruleset: " + str(base_directory))
         return False
     except configparser.Error as msg:
-        print("Error occured parsing the configuration file: " + str(msg),file=sys.stderr)
-        return False  
-        
+        print("Error occured parsing the configuration file: " + str(msg), file=sys.stderr)
+        return False
+
     return True
-    
-    
+
+
 ## Loads grammar information from multiple files for length specified terminals
 #
 # Return Values:
@@ -387,26 +382,25 @@ def _load_config(ruleset_info, base_directory, config):
 #     False: If an error occured loading the ruleset
 #
 def _load_from_multiple_files(grammar, config, base_directory, encoding):
-    
     directory = config.get('directory')
-    
+
     filenames = json.loads(config.get('filenames'))
-    
+
     for file in filenames:
         full_path = os.path.join(base_directory, directory, file)
-        
+
         length = int(file.split('.')[0])
-        
+
         # Initialize the structure to hold the data
         name = config.get('name') + file.split('.')[0]
         grammar[name] = []
-        
+
         if not _load_from_file(grammar[name], full_path, encoding):
             return False
 
     return True
-    
-    
+
+
 ## Loads grammar information from a file
 #
 # Return Values:
@@ -416,78 +410,77 @@ def _load_from_multiple_files(grammar, config, base_directory, encoding):
 #     False: If an error occured loading the ruleset
 #
 def _load_from_file(grammar_section, filename, encoding):
-    
     # Try to open the file
     try:
-        with codecs.open(filename, 'r', encoding= encoding, errors= 'surrogateescape') as file:
-            
+        with codecs.open(filename, 'r', encoding=encoding, errors='surrogateescape') as file:
+
             # Used to group different items of the same probability together
             prev_prob = -1.0
-            
+
             debug_count = 0
             error_flag = False
             # Read though all the lines in the file
             for value in file:
-            
+
                 # There was a problem with the previous line, so skip this line
                 # as it probably is just the probability info. Error flag
                 # is thrown when the Python readline splits on a weird input
                 if error_flag:
                     error_flag = False
                     continue
-                    
-                debug_count +=1
+
+                debug_count += 1
                 value2 = value
                 # There "shouldn't" be encoding errors in the rules files, but
                 # might as well check to be on the safe side
                 try:
                     value.encode(encoding)
-                    
+
                 except UnicodeEncodeError as e:
                     if e.reason == 'surrogates not allowed':
                         num_encoding_errors = num_encoding_errors + 1
                     else:
-                        print("Hmm, there was a weird problem reading in a line from the rules file",file=sys.stderr)
-                        print('',file=sys.stderr)
+                        print("Hmm, there was a weird problem reading in a line from the rules file", file=sys.stderr)
+                        print('', file=sys.stderr)
                     continue
-     
+
                 # Split up the tab seperated items and then save their values
-                split_values = value.rstrip().split("\t") 
-                
+                split_values = value.rstrip().split("\t")
+
                 # Sanity checking to make sure the file is well formed
                 try:
                     value = split_values[0]
                     prob = float(split_values[1])
                 except Exception as msg:
-                    print ("Exception parsing file: " + str(filename),file=sys.stderr)
-                    print ("Line: " + str(debug_count),file=sys.stderr)
-                    print ("Value (HEX): " + str(value2.encode("utf-8").hex()))
-                    print ("Ignorning line and continuing" ,file=sys.stderr)
+                    print("Exception parsing file: " + str(filename), file=sys.stderr)
+                    print("Line: " + str(debug_count), file=sys.stderr)
+                    print("Value (HEX): " + str(value2.encode("utf-8").hex()))
+                    print("Ignorning line and continuing", file=sys.stderr)
                     error_flag = True
                     continue
-                
+
                 # If another item had the same probabilty value
                 if prob == prev_prob:
                     grammar_section[-1]['values'].append(value)
-                  
+
                 # If this is the first item with this probability    
                 else:
                     prev_prob = prob
-                    
+
                     item = {
                         'values': [value],
                         'prob': prob
                     }
-                    
+
                     grammar_section.append(item)
-                                  
+
     except IOError as error:
-        print (error,file=sys.stderr)
-        print ("Error opening file " + filename ,file=sys.stderr)
-        return False
-        
-    except Exception as error:
-        print (error,file=sys.stderr)
+        print(error, file=sys.stderr)
+        print("Error opening file " + filename, file=sys.stderr)
         return False
 
-    return True   
+    except Exception as error:
+        print(error, file=sys.stderr)
+        return False
+
+    return True

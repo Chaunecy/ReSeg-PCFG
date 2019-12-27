@@ -4,10 +4,10 @@
 *.swp
 *.swo
 *.pyc
-
+.idea
 # Ignore rulesets so I don't accidently upload something I don't want to
 Rules/*
-
+venv
 # Don't ignore the default ruleset
 !Rules/Default
 

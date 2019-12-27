@@ -7,12 +7,16 @@
 #########################################################################
 
 
-import os
-import errno
 import codecs
 
+try:
+    from chardet.universaldetector import UniversalDetector
+except ImportError:
+    UniversalDetector = ""
+    pass
 
-## Prints a warning message and asks for user confirmation
+
+# Prints a warning message and asks for user confirmation
 #
 # Return Values:
 # --True: User selected Yes
@@ -34,8 +38,8 @@ def get_confirmation(warningtext):
             print("The option: " + str(user_input) + " : is not a valid input")
             print("Valid options: [Y]es or [N]o")
 
-            
-## Used for autodetecting file encoding of the training password set
+
+# Used for autodetecting file encoding of the training password set
 #
 # Requires the python package chardet to be installed
 #
@@ -47,15 +51,13 @@ def get_confirmation(warningtext):
 # so people can run this tool without installing it if they don't want to 
 # use this feature
 #
-def detect_file_encoding(training_file, file_encoding, max_passwords = 10000):
-
-    ##Try to import chardet
+def detect_file_encoding(training_file, file_encoding, max_passwords=10000):
+    # Try to import chardet
     #
     # If that package is not installed print out a warning and use is ok,
     # then use ascii as the default values
     #
     try:
-        from chardet.universaldetector import UniversalDetector
         detector = UniversalDetector()
     except ImportError as error:
         print("FAILED: chardet not insalled")
@@ -65,31 +67,31 @@ def detect_file_encoding(training_file, file_encoding, max_passwords = 10000):
         if get_confirmation("Do you want to continue using the default encoding 'ascii'?"):
             file_encoding.append('ascii')
             return True
-        
+
         else:
             # User wanted to exit instead
             print("Understood. Please install chardet or specify an encoding " +
-                "format on the command line"
-            )
+                  "format on the command line"
+                  )
             return False
-                
+
     try:
         cur_count = 0
         with open(training_file, 'rb') as file:
             for line in file.readlines():
                 detector.feed(line)
-                if detector.done: 
+                if detector.done:
                     break
                 cur_count = cur_count + 1
                 if cur_count >= max_passwords:
                     break
             detector.close()
-            
+
     except IOError as error:
-        print ("Error opening file " + training_file)
-        print ("Error is " + str(error))
+        print("Error opening file " + training_file)
+        print("Error is " + str(error))
         return False
-        
+
     try:
         file_encoding.append(detector.result['encoding'])
         print("File Encoding Detected: " + str(detector.result['encoding']))
@@ -103,7 +105,7 @@ def detect_file_encoding(training_file, file_encoding, max_passwords = 10000):
         return False
 
     return True
-    
+
 
 ## Checks to see if the input password is valid for this training program
 #
@@ -117,32 +119,31 @@ def detect_file_encoding(training_file, file_encoding, max_passwords = 10000):
 #   FALSE if invalid
 # 
 def check_valid(input_password):
-
     # Don't accept blank passwords for training.
     if len(input_password) == 0:
         return False
-         
+
     # Remove tabs from the training data
     # This is important since when the grammar is saved to disk tabs are used 
     # as seperators. There certainly are other approaches but putting this 
     # placeholder here for now since tabs are unlikely to be used in passwords
     if "\t" in input_password:
         return False
-        
+
     # Below are other values that cause problems that we are going to remove.
     # These values include things like LineFeed LF
-    
-    #Invalid characters at the begining of the ASCII table
-    for invalid_hex in range (0x0,0x20):
+
+    # Invalid characters at the begining of the ASCII table
+    for invalid_hex in range(0x0, 0x20):
         if chr(invalid_hex) in input_password:
             return False
-            
+
     # UTF-8 Line Seperator
     if u"\u2028" in input_password:
         return False
-        
+
     return True
-        
+
 
 ## Reads input passwords from file, one by one
 #
@@ -151,14 +152,13 @@ def check_valid(input_password):
 #
 class TrainerFileInput:
 
-
     ## Open the file for reading
     #
     # Passes file exceptions back up if they occur
     # Eg: if the file doesn't exist
     #
-    def __init__(self, filename, encoding = 'utf-8'):
-        
+    def __init__(self, filename, encoding='utf-8'):
+
         # Using surrogateescape to handle errors so we can detect encoding 
         # issues without raising an exception during the reading 
         # of the original password
@@ -166,56 +166,55 @@ class TrainerFileInput:
         self.encoding = encoding
         self.filename = filename
         self.file = codecs.open(
-            self.filename, 
-            'r', 
-            encoding= self.encoding, 
-            errors= 'surrogateescape'
+            self.filename,
+            'r',
+            encoding=self.encoding,
+            errors='surrogateescape'
         )
 
         # Keep track of the number of encoding errors
-        self.num_encoding_errors = 0    
-        
+        self.num_encoding_errors = 0
+
         # Keep track of the number of valid passwords that have been parsed
         self.num_passwords = 0
-        
+
         # Duplicate password detection
         #
         # Duplicates are good. If this doesn't see duplicate passwords warn the
         # user.
         self.duplicates_found = False
-        
+
         # Mini dictionary of the first X passwords to look for duplicates
         self.duplicate_detection = {}
-        
+
         # Number of passwords to read in to check for duplicates
         self.num_to_look_for_duplicates = 100000
-        
-        
+
     ## Returns one password from the training set
     #
     # If there are no more passwords returns None
     #   
     def read_password(self):
-        
+
         # Read an input password from the training set        
         try:
             # Loop until we find a valid password
             while True:
                 try:
                     password = self.file.readline()
-                
+
                 # Unicode errors will throw an exception here, so catch it
                 # and skip the password
                 except UnicodeError as msg:
                     self.num_encoding_errors += 1
                     continue
-            
+
                 # Check to see if the file is done
                 if password == "":
                     # Close file and return None
                     self.file.close()
                     return None
-                    
+
                 ## Check the encoding of the file
                 #
                 # Re-encode it and detect surrogates, this way we can 
@@ -231,21 +230,21 @@ class TrainerFileInput:
                     if e.reason == 'surrogates not allowed':
                         self.num_encoding_errors += 1
                     else:
-                        #print("Hmm, there was a weird problem reading in a line from the training file")
-                        #print("")
+                        # print("Hmm, there was a weird problem reading in a line from the training file")
+                        # print("")
                         self.num_encoding_errors += 1
                     continue
-                
+
                 # Remove newlines but leave whitespace
                 clean_password = password.rstrip('\r\n')
-      
+
                 # Checks to see if the password is valid
                 if not check_valid(clean_password):
                     continue
-                
+
                 ## This is a valid password
                 self.num_passwords += 1
-                
+
                 # Perform duplicate check if needed
                 if not self.duplicates_found:
                     if self.num_passwords < self.num_to_look_for_duplicates:
@@ -255,13 +254,13 @@ class TrainerFileInput:
                             # clean up duplicate_detection dic since we do
                             # not need it anymore
                             self.duplicate_detection.clear()
-                        
+
                         # Not a duplicate
                         self.duplicate_detection[clean_password] = 1
-                
+
                 # Return the password   
                 return clean_password
-        
+
         # File errors *shouldn't* happen but if they do raise them to make 
         # sure they don't silently halt the training
         #
@@ -269,6 +268,6 @@ class TrainerFileInput:
         # went wrong
         #        
         except IOError as error:
-            print (error)
-            print ("Error reading file " + self.filename)
+            print(error)
+            print("Error reading file " + self.filename)
             raise

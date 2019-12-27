@@ -39,7 +39,10 @@
 # Including this to print error message if python < 3.0 is used
 from __future__ import print_function
 import sys
+
 # Check for python3 and error out if not
+import time
+
 if sys.version_info[0] < 3:
     print("This program requires Python 3.x", file=sys.stderr)
     sys.exit(1)
@@ -48,7 +51,7 @@ if sys.version_info[0] < 3:
 import argparse
 import os
 import traceback
-import configparser # Used to save/load status of guessing sessions
+import configparser  # Used to save/load status of guessing sessions
 import datetime
 
 # Local imports
@@ -56,7 +59,7 @@ from lib_guesser.banner_info import print_banner, print_error
 from lib_guesser.pcfg_grammar import PcfgGrammar
 from lib_guesser.cracking_session import CrackingSession
 
-       
+
 ## Parses the command line
 #
 # Responsible for parsing the command line.
@@ -69,15 +72,12 @@ from lib_guesser.cracking_session import CrackingSession
 # argparse catches a problem.
 #
 def parse_command_line(program_info):
-
     # Keeping the title text to be generic to make re-using code easier
     parser = argparse.ArgumentParser(
-        description= program_info['name'] +
-        ', version: ' + 
-        program_info['version']
+        description=program_info['name'] + ', version: ' + program_info['version']
     )
-        
-    ## Standard options for ruleset, etc
+
+    # Standard options for ruleset, etc
     #
     # The rule name to load the grammar from. Should be saved under the
     # 'Rules' folder. This rule needs to have been previously created by
@@ -85,142 +85,163 @@ def parse_command_line(program_info):
     parser.add_argument(
         '--rule',
         '-r',
-        help = 'The ruleset to use. Default is ' + 
-        program_info['rule_name'],
-        metavar = 'RULESET_NAME',
-        required = False,
-        default = program_info['rule_name']
+        help='The ruleset to use. Default is ' +
+             program_info['rule_name'],
+        metavar='RULESET_NAME',
+        required=False,
+        default=program_info['rule_name']
     )
-    
+
     parser.add_argument(
         '--session',
         '-s',
-        help = 'Session name. Used for saving/restoring sessions Default is ' + 
-            program_info['session_name'],
-        metavar = 'SESSION_NAME',
-        required = False,
-        default = program_info['session_name']
+        help='Session name. Used for saving/restoring sessions Default is ' +
+             program_info['session_name'],
+        metavar='SESSION_NAME',
+        required=False,
+        default=program_info['session_name']
     )
-    
+
     parser.add_argument(
         '--load',
-        '-l', 
+        '-l',
         help='Loads a previous guessing session',
-        dest='load', 
-        action='store_const', 
-        const= not program_info['load_session'],
-        default = program_info['load_session']
+        dest='load',
+        action='store_const',
+        const=not program_info['load_session'],
+        default=program_info['load_session']
     )
-    
+
     ## Advanced options
     #
     parser.add_argument(
         '--skip_brute',
         help='Do not perform Markov based guesses using OMEN. This is useful ' +
-            'if you are running a seperate dedicated Markov based attack',
-        dest='skip_brute', 
-        action='store_const', 
-        const= not program_info['skip_brute'],
-        default = program_info['skip_brute']
+             'if you are running a seperate dedicated Markov based attack',
+        dest='skip_brute',
+        action='store_const',
+        const=not program_info['skip_brute'],
+        default=program_info['skip_brute']
     )
-    
+
     parser.add_argument(
         '--all_lower',
-        help='Only generate lowercase guesses. No case mangling. (Setting is currently not applied to OMEN generated guesses)', 
-        dest='skip_case', 
-        action='store_const', 
-        const= not program_info['skip_case'],
-        default = program_info['skip_case']
+        help='Only generate lowercase guesses. No case mangling. (Setting is currently'
+             ' not applied to OMEN generated guesses)',
+        dest='skip_case',
+        action='store_const',
+        const=not program_info['skip_case'],
+        default=program_info['skip_case']
     )
 
     ## Debugging and research information
     #
     parser.add_argument(
         '--debug',
-        '-d', 
+        '-d',
         help='Prints out debugging info vs guesses.',
-        dest='debug', 
-        action='store_const', 
-        const= not program_info['debug'],
-        default = program_info['debug']
+        dest='debug',
+        action='store_const',
+        const=not program_info['debug'],
+        default=program_info['debug']
     )
-        
+
+    parser.add_argument(
+        "--save-to-file",
+        "-f",
+        type=str,
+        help="save guesses generated to specified file",
+        required=False,
+        default=None
+    )
+
+    parser.add_argument(
+        "--guess-number",
+        "-n",
+        type=int,
+        help="how many candidates to be generated",
+        required=False,
+        default=100,
+    )
+
     # Parse all the args and save them    
-    args=parser.parse_args() 
-    
+    args = parser.parse_args()
+
     # Standard Options
     program_info['rule_name'] = args.rule
     program_info['session_name'] = args.session
     program_info['load_session'] = args.load
-    
+    program_info['save_to_file'] = args.save_to_file
+    program_info['guess_number'] = args.guess_number
+
     # Advanced Options
     program_info['skip_brute'] = args.skip_brute
     program_info['skip_case'] = args.skip_case
-   
+
     # Debugging Options
     program_info['debug'] = args.debug
 
-    return True 
+    return True
 
-  
+
 ## Main function, starts everything off
 #    
 def main():
-
     # Information about this program
     program_info = {
-    
+
         # Program and Contact Info
-        'name':'PCFG Guesser',
+        'name': 'PCFG Guesser',
         'version': '4.1',
-        'author':'Matt Weir',
-        'contact':'cweir@vt.edu',
-        
+        'author': 'Matt Weir',
+        'contact': 'cweir@vt.edu',
+
         # Standard Options
-        'rule_name':'Default',
-        'session_name':'default_run',
-        'load_session':False,
-        
+        'rule_name': 'Default',
+        'session_name': 'default_run',
+        'load_session': False,
+        'save_to_file': None,
+        'guess_number': 100,
+
         # Advanced Options
         'skip_brute': False,
         'skip_case': False,
-        
+
         # Debugging Options
         'debug': False,
 
     }
-      
+
     print_banner()
-    print("Version: " + str(program_info['version']),file=sys.stderr)
-    print('',file=sys.stderr)
-    
+    print("Version: " + str(program_info['version']), file=sys.stderr)
+    print('', file=sys.stderr)
+
     # Parsing the command line
     if not parse_command_line(program_info):
         # There was a problem with the command line so exit
-        print("Exiting...",file=sys.stderr)
+        print("Exiting...", file=sys.stderr)
         return
-  
+
     # The configfile to load/save the guessing session status
     save_filename = os.path.join(
-                        os.path.dirname(os.path.realpath(__file__)),
-                        program_info['session_name'] + '.sav'
-                        ) 
-  
+        os.path.dirname(os.path.realpath(__file__)),
+        program_info['session_name'] + '.sav'
+    )
+
     # Check to see if we need to load up a previous guessing session
     if program_info['load_session']:
-        print("Restoring previous session: " + program_info['session_name'],file=sys.stderr)
+        print("Restoring previous session: " + program_info['session_name'], file=sys.stderr)
         save_config = load_save(save_filename, program_info)
-        
+
         # Check to make sure it is valid
-        if save_config == None:
-            print("Exiting...",file=sys.stderr)
+        if save_config is None:
+            print("Exiting...", file=sys.stderr)
             return
-        
-    
-    # Create a new save config    
+
+    # Create a new save config
     else:
         save_config = create_save_config(program_info)
-  
+
     # Get the base directory to load all of the rules from
     #
     # Don't want to use the relative path since who knows where someone is 
@@ -229,54 +250,57 @@ def main():
     # Also aiming to make this OS independent/
     #
     base_directory = os.path.join(
-                        os.path.dirname(os.path.realpath(__file__)),
-                        'Rules',
-                        program_info['rule_name']
-                        )        
-    
+        os.path.dirname(os.path.realpath(__file__)),
+        'Rules',
+        program_info['rule_name']
+    )
+
     ## Create the grammar
     #
     # Note, if the ruleset can not be loaded, (for example it doesn't exist),
     # it will throw an exception.
     try:
-        print("Loading Ruleset: " + str(program_info['rule_name']),file=sys.stderr)
-        print('',file=sys.stderr)
+        print("Loading Ruleset: " + str(program_info['rule_name']), file=sys.stderr)
+        print('', file=sys.stderr)
         pcfg = PcfgGrammar(
-            program_info['rule_name'], 
+            program_info['rule_name'],
             base_directory,
             program_info['version'],
             save_filename,
-            skip_brute = program_info['skip_brute'],
-            skip_case = program_info['skip_case'],
-            debug = program_info['debug']
-            )
-        
-    except Exception as msg:
-        print("Exiting")
+            skip_brute=program_info['skip_brute'],
+            skip_case=program_info['skip_case'],
+            debug=program_info['debug'],
+            save_guesses_to_file=program_info['save_to_file'],
+            guess_number=program_info['guess_number']
+        )
+
+    except Exception:
+        print("Exiting, failed to init pcfg")
         return
-    
+
     # Check to make the ruleset is the same if restoring a guessing session
-    if save_config.has_option('rule_info','uuid'):
+    if save_config.has_option('rule_info', 'uuid'):
         # Looks like the rule was changed since the last session
         if save_config['rule_info']['uuid'] != pcfg.ruleset_info['uuid']:
-            print("Error: The UUID of the save file and the loaded rules do not match",file=sys.stderr)
-            print("       This normally happens if you retrain a ruleset and then try to restore an old session",file=sys.stderr)
+            print("Error: The UUID of the save file and the loaded rules do not match", file=sys.stderr)
+            print("       This normally happens if you retrain a ruleset and then try to restore an old session",
+                  file=sys.stderr)
             print("       Expected UUID: " + str(save_config['rule_info']['uuid']), file=sys.stderr)
             print("       Found UUID: " + str(pcfg.ruleset_info['uuid']), file=sys.stderr)
-            print("Exiting...",file=sys.stderr)
+            print("Exiting...", file=sys.stderr)
             return
-    
+
     # Initalize the rule UUID for a new guessing session        
     else:
         save_config.set('rule_info', 'uuid', pcfg.ruleset_info['uuid'])
-        
+
     # Initalize the cracking session
     current_cracking_session = CrackingSession(pcfg, save_config, save_filename)
-    
-    # Setup is done, now start generating rules 
-    current_cracking_session.run(load_session = program_info['load_session'])
-    
-    
+
+    # Setup is done, now start generating rules
+    current_cracking_session.run(load_session=program_info['load_session'])
+
+
 ## Creates the configparser object that will be used to save/load sessions
 #
 # Input Variables:
@@ -286,25 +310,24 @@ def main():
 #    save_config: A configparser containing some of the values to save
 #
 def create_save_config(program_info):
-    
     save_config = configparser.ConfigParser()
-    
+
     section = "rule_info"
     save_config.add_section(section)
     save_config.set(section, 'rule_name', program_info['rule_name'])
     save_config.set(section, 'skip_brute', str(program_info['skip_brute']))
     save_config.set(section, 'skip_case', str(program_info['skip_case']))
-    
+
     section = "session_info"
     save_config.add_section(section)
     save_config.set(section, 'first_started', datetime.datetime.now().isoformat())
-    
+
     section = "guessing_info"
     save_config.add_section(section)
-    
+
     return save_config
-    
-    
+
+
 ## Loads a configparser object containing info about a saved guessing session
 #
 # Input Variables:
@@ -316,44 +339,43 @@ def create_save_config(program_info):
 #    save_config: A configparser containing some of the values to save
 #
 def load_save(save_filename, program_info):
-
     save_config = configparser.ConfigParser()
-    
+
     try:
         save_config.read_file(open(save_filename))
-        
+
         ## Check to make sure it is well formed
         #
         if not save_config.has_option('rule_info', 'rule_name'):
             raise configparser.Error('Missing rule_name')
-        if not save_config.has_option('rule_info','uuid'):
+        if not save_config.has_option('rule_info', 'uuid'):
             raise configparser.Error('Missing rule uuid')
-        if not save_config.has_option('rule_info','skip_brute'):
+        if not save_config.has_option('rule_info', 'skip_brute'):
             raise configparser.Error('Missing the skip_brute flag for session')
-        if not save_config.has_option('rule_info','skip_case'):
+        if not save_config.has_option('rule_info', 'skip_case'):
             raise configparser.Error('Missing the skip_case flag for session')
-        if not save_config.has_option('session_info','last_updated'):
+        if not save_config.has_option('session_info', 'last_updated'):
             raise configparser.Error('Missing last_updated')
-            
+
         # Set the ruleset info
-        program_info['rule_name'] = save_config.get('rule_info','rule_name')
-        
+        program_info['rule_name'] = save_config.get('rule_info', 'rule_name')
+
         # Set the skip_brute flag
-        program_info['skip_brute'] = save_config.getboolean('rule_info','skip_brute')
-        
+        program_info['skip_brute'] = save_config.getboolean('rule_info', 'skip_brute')
+
         # Set the skip_case flag for not doing case mangling
-        program_info['skip_case'] = save_config.getboolean('rule_info','skip_case')
-        
+        program_info['skip_case'] = save_config.getboolean('rule_info', 'skip_case')
+
         return save_config
-        
+
     except IOError as msg:
-        print("Could not open the session save file.",file=sys.stderr)
-        print("Save File: " + save_filename,file=sys.stderr)
+        print("Could not open the session save file.", file=sys.stderr)
+        print("Save File: " + save_filename, file=sys.stderr)
         return None
     except configparser.Error as msg:
-        print("Error occured parsing the save file: " + str(msg),file=sys.stderr)
-        return None 
-  
-    
+        print("Error occured parsing the save file: " + str(msg), file=sys.stderr)
+        return None
+
+
 if __name__ == "__main__":
     main()

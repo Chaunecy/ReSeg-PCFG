@@ -34,24 +34,24 @@
 
 # Including this to print error message if python < 3.0 is used
 from __future__ import print_function
+
 import sys
-# Check for python3 and error out if not
-if sys.version_info[0] < 3:
-    print("This program requires Python 3.x", file=sys.stderr)
-    sys.exit(1)
-    
+
 import argparse
-import os  
-import traceback
-from collections import Counter
+import os
 
 # Local imports
 from lib_princeling.banner_info import print_banner
 from lib_guesser.pcfg_grammar import PcfgGrammar
 from lib_princeling.wordlist_generation import create_prince_wordlist
 
+# Check for python3 and error out if not
+if sys.version_info[0] < 3:
+    print("This program requires Python 3.x", file=sys.stderr)
+    sys.exit(1)
 
-## Parses the command line
+
+# Parses the command line
 #
 # Responsible for parsing the command line.
 #
@@ -63,112 +63,109 @@ from lib_princeling.wordlist_generation import create_prince_wordlist
 # argparse catches a problem.
 #
 def parse_command_line(program_info):
-
     # Keeping the title text to be generic to make re-using code easier
     parser = argparse.ArgumentParser(
-        description= program_info['name'] +
-        ', version: ' + 
-        program_info['version']
+        description=program_info['name'] + ', version: ' + program_info['version']
     )
-        
-    ## Standard options
+
+    # Standard options
     #
     # The rule name to use for generating the wordlist
     parser.add_argument(
         '--rule',
         '-r',
-        help = 'Name of PCFG ruleset to generate the PRINCE wordlist. Default is ' + 
-        program_info['rule_name'],
-        metavar = 'RULESET_NAME',
-        required = False,
-        default = program_info['rule_name']
+        help='Name of PCFG ruleset to generate the PRINCE wordlist. Default is ' +
+             program_info['rule_name'],
+        metavar='RULESET_NAME',
+        required=False,
+        default=program_info['rule_name']
     )
-    
+
     # The output file to save results too 
     parser.add_argument(
         '--output',
         '-o',
-        help = 'The output file to save results to. If not specified will output to stdout',
-        metavar = 'OUTPUT_FILENAME',
-        required = False,
-        default = program_info['output_file']
+        help='The output file to save results to. If not specified will output to stdout',
+        metavar='OUTPUT_FILENAME',
+        required=False,
+        default=program_info['output_file']
     )
-    
+
     # Max size of wordlist to generate
     parser.add_argument(
         '--size',
         '-s',
-        help = 'The maximum size of wordlist to generate. If not specified, will create words from terminals until grammar is exhausted',
-        metavar = 'MAX_SIZE',
-        required = False,
-        default = program_info['max_size'],
-        type = int, 
+        help='The maximum size of wordlist to generate. If not specified, '
+             'will create words from terminals until grammar is exhausted',
+        metavar='MAX_SIZE',
+        required=False,
+        default=program_info['max_size'],
+        type=int,
     )
-    
+
     # Only generate lowercase words for the wordlist
     parser.add_argument(
         '--all_lower',
-        help='Only save lowercase words. No case mangling.', 
-        dest='skip_case', 
-        action='store_const', 
-        const= not program_info['skip_case'],
-        default = program_info['skip_case']
+        help='Only save lowercase words. No case mangling.',
+        dest='skip_case',
+        action='store_const',
+        const=not program_info['skip_case'],
+        default=program_info['skip_case']
     )
-    
+
     # Parse all the args and save them    
-    args=parser.parse_args() 
-    
+    args = parser.parse_args()
+
     # Standard Options
     program_info['rule_name'] = args.rule
-    program_info['output_file']= args.output
+    program_info['output_file'] = args.output
     program_info['max_size'] = args.size
-    
+
     # Advanced options
     program_info['skip_case'] = args.skip_case
-    
-    ## Sanity checking of values
+
+    # Sanity checking of values
     #
     # Check to make sure limit makes sense
-    if program_info['max_size']!= None and program_info['max_size'] <= 0:
+    if program_info['max_size'] is not None and program_info['max_size'] <= 0:
         print("Error, max size must be greater than 0")
         return False
-        
+
     return True
-    
-    
-## Main function, starts everything off
+
+
+# Main function, starts everything off
 #    
 def main():
-
     # Information about this program
     program_info = {
-    
+
         # Program and Contact Info
-        'name':'PRINCE-LING',
+        'name': 'PRINCE-LING',
         'version': '4.1',
-        'author':'Matt Weir',
-        'contact':'cweir@vt.edu',
-        
+        'author': 'Matt Weir',
+        'contact': 'cweir@vt.edu',
+
         # Standard Options
-        'rule_name':'Default',
-        'output_file':None,
-        'max_size':None,
-        
+        'rule_name': 'Default',
+        'output_file': None,
+        'max_size': None,
+
         # Advanced Options
-        'skip_case':False,
-        
+        'skip_case': False,
+
     }
-    
+
     print_banner()
-    print("Version: " + str(program_info['version']),file=sys.stderr)
+    print("Version: " + str(program_info['version']), file=sys.stderr)
     print()
-    
+
     # Parsing the command line
     if not parse_command_line(program_info):
         # There was a problem with the command line so exit
-        print("Exiting...",file=sys.stderr)
+        print("Exiting...", file=sys.stderr)
         return
-        
+
     # Get the base directory to load all of the rules from
     #
     # Don't want to use the relative path since who knows where someone is 
@@ -177,38 +174,38 @@ def main():
     # Also aiming to make this OS independent/
     #
     base_directory = os.path.join(
-                        os.path.dirname(os.path.realpath(__file__)),
-                        'Rules',
-                        program_info['rule_name']
-                        )     
-    
-    ## Create the grammar
+        os.path.dirname(os.path.realpath(__file__)),
+        'Rules',
+        program_info['rule_name']
+    )
+
+    # Create the grammar
     #
     # Note, if the ruleset can not be loaded, (for example it doesn't exist),
     # it will throw an exception.
     try:
-        print("Loading Ruleset: " + str(program_info['rule_name']),file=sys.stderr)
-        print('',file=sys.stderr)
+        print("Loading Ruleset: " + str(program_info['rule_name']), file=sys.stderr)
+        print('', file=sys.stderr)
         pcfg = PcfgGrammar(
-            program_info['rule_name'], 
+            program_info['rule_name'],
             base_directory,
             program_info['version'],
-            base_structure_folder = "Prince",
-            skip_case = program_info['skip_case'],
-            )
-        
+            base_structure_folder="Prince",
+            skip_case=program_info['skip_case'],
+        )
+
     except Exception as msg:
         print(msg)
         print("Exiting")
         return
-        
+
     # Set up the wordlist save option, either stdout or write to file
     pcfg.save_to_file(program_info['output_file'])
-    
+
     create_prince_wordlist(pcfg, program_info['max_size'], base_directory, program_info['output_file'])
-    
+
     pcfg.shutdown()
-    
-        
+
+
 if __name__ == "__main__":
-    main() 
+    main()
