@@ -88,7 +88,7 @@ def parse_command_line(program_info):
         help='The ruleset to use. Default is ' +
              program_info['rule_name'],
         metavar='RULESET_NAME',
-        required=False,
+        required=True,
         default=program_info['rule_name']
     )
 
@@ -112,7 +112,7 @@ def parse_command_line(program_info):
         default=program_info['load_session']
     )
 
-    ## Advanced options
+    # Advanced options
     #
     parser.add_argument(
         '--skip_brute',
@@ -134,7 +134,7 @@ def parse_command_line(program_info):
         default=program_info['skip_case']
     )
 
-    ## Debugging and research information
+    # Debugging and research information
     #
     parser.add_argument(
         '--debug',
@@ -151,7 +151,7 @@ def parse_command_line(program_info):
         "-f",
         type=str,
         help="save guesses generated to specified file",
-        required=False,
+        required=True,
         default=None
     )
 
@@ -160,7 +160,7 @@ def parse_command_line(program_info):
         "-n",
         type=int,
         help="how many candidates to be generated",
-        required=False,
+        required=True,
         default=100,
     )
 
