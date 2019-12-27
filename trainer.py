@@ -97,7 +97,7 @@ def parse_command_line(program_info):
         help='Name of generated ruleset. Default is ' +
              program_info['rule_name'],
         metavar='RULESET_NAME',
-        required=False,
+        required=True,
         default=program_info['rule_name']
     )
 
@@ -264,7 +264,7 @@ def main():
         'save_sensitive': False,
 
         # OMEN Options
-        'ngram': 2,
+        'ngram': 4,
         'alphabet_size': 100,
         'alphabet': 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!.*@-_$#<?',
 
