@@ -38,29 +38,29 @@
 
 # Including this to print error message if python < 3.0 is used
 from __future__ import print_function
+
 import sys
 
+# Global imports
+
+import argparse
+import os
+import configparser  # Used to save/load status of guessing sessions
+import datetime
+
+# Local imports
+from lib_guesser.banner_info import print_banner
+from lib_guesser.pcfg_grammar import PcfgGrammar
+from lib_guesser.cracking_session import CrackingSession
+
 # Check for python3 and error out if not
-import time
 
 if sys.version_info[0] < 3:
     print("This program requires Python 3.x", file=sys.stderr)
     sys.exit(1)
 
-# Global imports    
-import argparse
-import os
-import traceback
-import configparser  # Used to save/load status of guessing sessions
-import datetime
 
-# Local imports
-from lib_guesser.banner_info import print_banner, print_error
-from lib_guesser.pcfg_grammar import PcfgGrammar
-from lib_guesser.cracking_session import CrackingSession
-
-
-## Parses the command line
+# Parses the command line
 #
 # Responsible for parsing the command line.
 #
@@ -184,7 +184,7 @@ def parse_command_line(program_info):
     return True
 
 
-## Main function, starts everything off
+# Main function, starts everything off
 #    
 def main():
     # Information about this program
@@ -249,13 +249,9 @@ def main():
     #
     # Also aiming to make this OS independent/
     #
-    base_directory = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        'Rules',
-        program_info['rule_name']
-    )
+    base_directory = os.path.join(program_info['rule_name'])
 
-    ## Create the grammar
+    # Create the grammar
     #
     # Note, if the ruleset can not be loaded, (for example it doesn't exist),
     # it will throw an exception.
@@ -301,7 +297,7 @@ def main():
     current_cracking_session.run(load_session=program_info['load_session'])
 
 
-## Creates the configparser object that will be used to save/load sessions
+# Creates the configparser object that will be used to save/load sessions
 #
 # Input Variables:
 #    program_info: A dictionary containing information about the current session
@@ -328,7 +324,7 @@ def create_save_config(program_info):
     return save_config
 
 
-## Loads a configparser object containing info about a saved guessing session
+# Loads a configparser object containing info about a saved guessing session
 #
 # Input Variables:
 #    base_directory: The directory to load the save file from
@@ -344,7 +340,7 @@ def load_save(save_filename, program_info):
     try:
         save_config.read_file(open(save_filename))
 
-        ## Check to make sure it is well formed
+        # Check to make sure it is well formed
         #
         if not save_config.has_option('rule_info', 'rule_name'):
             raise configparser.Error('Missing rule_name')
@@ -368,7 +364,7 @@ def load_save(save_filename, program_info):
 
         return save_config
 
-    except IOError as msg:
+    except IOError:
         print("Could not open the session save file.", file=sys.stderr)
         print("Save File: " + save_filename, file=sys.stderr)
         return None
