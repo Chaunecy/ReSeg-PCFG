@@ -121,10 +121,13 @@ class WeirPCFGv41:
         for g, c in zip(guesses, cracked):
             self.__fout_gc.write(f"{g} : {c}\n")
         self.__fout_gc.flush()
-        self.__fout_gc.close()
-        draw_gc_curve(guesses, cracked, "", self.__save_figure)
+        if self.__save_figure is not None:
+            draw_gc_curve(guesses, cracked, "", self.__save_figure)
         print(f"All done! You may find the figure here: {self.__save_figure},"
               f" and guess-crack file here: {self.__fout_gc.name}")
+
+    def __del__(self):
+        self.__fout_gc.close()
 
 
 if __name__ == '__main__':
@@ -136,7 +139,7 @@ if __name__ == '__main__':
     cli_parser.add_argument("--guess-crack-file", "-f", dest="fout_gc", required=True,
                             type=argparse.FileType("w"), default=sys.stdout,
                             help="save guess-crack info here, use \"-\" to print into stdout")
-    cli_parser.add_argument("--guess-crack-curve", "-c", dest="gc_curve", required=True, type=str,
+    cli_parser.add_argument("--guess-crack-curve", "-c", dest="gc_curve", required=False, type=str, default=None,
                             help="curve file will be put here, with suffix \".pdf\", use --img to "
                                  "generate image with suffix \"*.png\"")
     cli_parser.add_argument("--img", "-i", dest="suffix", required=False, default=".pdf", action="store_const",
@@ -144,7 +147,8 @@ if __name__ == '__main__':
                             help="store the picture with suffix \".png\"")
     args = cli_parser.parse_args()
     weirPCFGv41 = WeirPCFGv41(rule=args.abs_rule_set, test=args.abs_test_set, sample_size=args.sample_size,
-                              fout_gc=args.fout_gc, save_figure=args.gc_curve + args.suffix)
+                              fout_gc=args.fout_gc,
+                              save_figure=None if args.gc_curve is None else f"{args.gc_curve}{args.suffix}")
 
     # weirPCFGv41.sample()
     weirPCFGv41.evaluate()
