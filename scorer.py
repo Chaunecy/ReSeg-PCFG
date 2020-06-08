@@ -3,7 +3,7 @@ import random
 import re
 import sys
 from collections import Counter, defaultdict
-from math import log2
+from math import log2, ceil
 from typing import List, Tuple, TextIO, Any, Dict
 
 import numpy
@@ -92,9 +92,13 @@ def aod2lds(raw_struct: str) -> (str, List[Tuple[int, int]], int):
         elif tag == 'Y':
             res += "DDDD"
             add_len *= 4
-        else:
+        elif tag == 'K':
             rm.append((start_pos, span))
+        elif tag == 'X':
+            add_len *= 2
+            rm.append((start_pos, add_len))
             pass
+        start_pos += add_len
         plen += add_len
     # if len(res) == plen:
     return res, rm, plen
@@ -148,8 +152,10 @@ class MyScorer:
         self.__load_grammars()
         self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
 
+        print("Done!\n"
+              "Pre-processing...", end="", file=sys.stderr)
         luds2base_structures = {}
-        filtered = defaultdict(lambda: [("", [], "")])
+        filtered = defaultdict(lambda: [])
         for struct in self.count_base_structures:
             lds, rm, plen = aod2lds(struct)
             if len(rm) != 0:
@@ -160,7 +166,6 @@ class MyScorer:
                     luds2base_structures[lds] = set()
                 luds2base_structures[lds].add(struct)
             pass
-
         for s in luds2base_structures:
             ls = len(s)
             if ls not in filtered:
@@ -171,10 +176,9 @@ class MyScorer:
                 if rmd == lds:
                     luds2base_structures[s].add(origin_struct)
         del filtered
-
-        self.lds2base_structures = luds2base_structures
         print("Done!\n"
-              "Pre-processing...", end="", file=sys.stderr)
+              "Generating Cache...", end="", file=sys.stderr)
+        self.lds2base_structures = luds2base_structures
         self.__extend_structure = extend_dict(self.count_base_structures)
         self.__extend_years = extend_dict(self.count_years)
         self.__extend_context = extend_dict(self.count_context_sensitive)
@@ -205,11 +209,16 @@ class MyScorer:
             start_pos = 0
             for t in terminals:
                 tag, span = t[0], int(t[1:])
-                pwd_part = pwd[start_pos:start_pos + span]
+                addon = span
+                if tag == 'Y':
+                    addon *= 4
+                elif tag == 'X':
+                    addon *= 2
+                pwd_part = pwd[start_pos:start_pos + addon]
                 if tag == 'A':
                     prob *= self.count_alpha.get(len(pwd_part), {}).get(pwd_part.lower(), 0.0)
                     if prob < 1e-100:
-                        continue
+                        break
                     alpha_mask = ''
                     for p in pwd_part:
                         if p.isupper():
@@ -231,11 +240,12 @@ class MyScorer:
                     print(f"unknown tag: {tag} in {s} for {pwd}")
                     sys.exit(-1)
                     pass
-                start_pos += span
+                start_pos += addon
                 if prob == 0:
-                    continue
+                    break
                 pass
-            prob_list.append(prob)
+            if prob != 0:
+                prob_list.append(prob)
             pass
         if len(prob_list) == 0:
             return 0
@@ -326,7 +336,7 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
                           total=len(scored_pwd_list)):
         num, mlp = info
-        rank = round(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
+        rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
         prev_rank = rank
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
@@ -345,10 +355,14 @@ def main():
 
 def test():
     pcfg_scorer = MyScorer(rule="./Rules/Origin/rockyou")
-    print(pcfg_scorer.minus_log2_prob("iluvyandel"))
-    print(pcfg_scorer.minus_log2_prob("0O9I8U7Y"))
-    print(pcfg_scorer.minus_log2_prob("custom"))
-    print(pcfg_scorer.minus_log2_prob("imsocool"))
+    usr_in = ""
+    while usr_in != "exit":
+        usr_in = input("Type in password: ")
+        print(pcfg_scorer.minus_log2_prob(usr_in))
+    # print(pcfg_scorer.minus_log2_prob("iluvyandel"))
+    # print(pcfg_scorer.minus_log2_prob("0O9I8U7Y"))
+    # print(pcfg_scorer.minus_log2_prob("custom"))
+    # print(pcfg_scorer.minus_log2_prob("imsocool"))
     pass
 
 
