@@ -11,7 +11,7 @@ venv
 # Don't ignore the default ruleset
 !Rules/Default
 
-
+*.pickle
 # Don't commit save files
 *.sav
 *.omn
