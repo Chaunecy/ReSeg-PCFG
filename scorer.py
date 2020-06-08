@@ -173,7 +173,6 @@ class MyScorer:
         del filtered
 
         self.lds2base_structures = luds2base_structures
-        print(self.lds2base_structures)
         print("Done!\n"
               "Pre-processing...", end="", file=sys.stderr)
         self.__extend_structure = extend_dict(self.count_base_structures)
@@ -248,7 +247,7 @@ class MyScorer:
         return -log2(max(prob, 1e-100))
 
     def calc_minus_log2_prob_from_file(self, passwords: TextIO) -> Dict[Any, Tuple[int, float]]:
-        print("Calculating minus log2 prob for passwords...", end="", file=sys.stderr)
+        print("Calculating minus log2 prob for passwords...", file=sys.stderr)
         raw_pwd_counter = defaultdict(int)
         for pwd in passwords:
             pwd = pwd.strip("\r\n")
@@ -324,10 +323,10 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     cracked = 0
     total = sum([n for n, _ in scored_pwd_list.values()])
     prev_rank = 0
-    for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=True),
+    for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
                           total=len(scored_pwd_list)):
         num, mlp = info
-        rank = max(round(minus_log_prob2rank(minus_log_prob_list, ranks, mlp)), prev_rank + 1)
+        rank = round(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
         prev_rank = rank
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
@@ -344,8 +343,15 @@ def main():
     pass
 
 
+def test():
+    pcfg_scorer = MyScorer(rule="./Rules/Origin/rockyou")
+    print(pcfg_scorer.minus_log2_prob("iluvyandel"))
+    print(pcfg_scorer.minus_log2_prob("0O9I8U7Y"))
+    print(pcfg_scorer.minus_log2_prob("custom"))
+    print(pcfg_scorer.minus_log2_prob("imsocool"))
+    pass
+
+
 if __name__ == '__main__':
-    # k = rm_substr("abcdef", [(1, 2)])
-    # print(k)
     main()
     pass
