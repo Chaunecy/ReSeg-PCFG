@@ -468,7 +468,6 @@ def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: T
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
     scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
     total = sum([n for n, _ in scored_pwd_list.values()])
-    ideal_res = struct_transform4ideal_improvement(pwd_list=target, pcfg_scorer=pcfg_scorer)
     target.close()
     cracked = 0
     prev_rank = 0
@@ -481,6 +480,7 @@ def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: T
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
         pass
+    ideal_res = struct_transform4ideal_improvement(pwd_list=target, pcfg_scorer=pcfg_scorer)
     cracked = 0
     prev_rank = 0
     total2 = sum([num for _, _, num in ideal_res])
