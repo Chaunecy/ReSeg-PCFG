@@ -168,6 +168,7 @@ class MyScorer:
         self.count_base_structures = Counter()
 
         self.count_raw_base_structures = Counter()
+        self.minimal_prob = sys.float_info.min
         print("Start loading grammars...", end="", file=sys.stderr)
         self.__load_grammars()
         self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
@@ -237,7 +238,7 @@ class MyScorer:
                 pwd_part = pwd[start_pos:start_pos + addon]
                 if tag == 'A':
                     prob *= self.count_alpha.get(len(pwd_part), {}).get(pwd_part.lower(), 0.0)
-                    if prob < 1e-100:
+                    if prob <= self.minimal_prob:
                         break
                     alpha_mask = ''
                     for p in pwd_part:
@@ -274,7 +275,7 @@ class MyScorer:
 
     def minus_log2_prob(self, pwd: str) -> float:
         prob = self.calc_prob(pwd)
-        return -log2(max(prob, 1e-100))
+        return -log2(max(prob, self.minimal_prob))
 
     def calc_minus_log2_prob_from_file(self, passwords: TextIO) -> Dict[Any, Tuple[int, float]]:
         """
@@ -282,7 +283,6 @@ class MyScorer:
         :param passwords: passwords, do not close it please!
         :return:
         """
-        print("Calculating minus log2 prob for passwords...", file=sys.stderr)
         print(f"target: {passwords.name}", file=sys.stderr)
         raw_pwd_counter = defaultdict(int)
         passwords.seek(0)
@@ -290,18 +290,16 @@ class MyScorer:
             pwd = pwd.strip("\r\n")
             raw_pwd_counter[pwd] += 1
         pwd_counter = defaultdict(lambda: (0, .0))
-        for pwd, num in tqdm(iterable=raw_pwd_counter.items(), total=len(raw_pwd_counter)):
+        for pwd, num in tqdm(iterable=raw_pwd_counter.items(), total=len(raw_pwd_counter),
+                             desc="Calc prob: "):
             pwd_counter[pwd] = (num, self.minus_log2_prob(pwd))
-        print("Done!", file=sys.stderr)
         return pwd_counter
         pass
 
     def gen_n_rand_pwd(self, n: int = 10000) -> List[Tuple[float, str]]:
-        print(f"Generating {n} samples...", file=sys.stderr)
         pairs = []
-        for _ in tqdm(range(n)):
+        for _ in tqdm(iterable=range(n), desc="Sampling: "):
             pairs.append(self.gen_rand_pwd())
-        print("Done!", file=sys.stderr)
         return pairs
         pass
 
@@ -400,18 +398,15 @@ def wc_l(file: TextIO):
 def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
     transform_groups = defaultdict(lambda: set())
     pwd_counter = defaultdict(int)
-    print(f"Counting unique passwords...", file=sys.stderr)
     num_lines = wc_l(pwd_list)
     pwd_list.seek(0)
-    for line in tqdm(iterable=pwd_list, total=num_lines):
+    for line in tqdm(iterable=pwd_list, total=num_lines, desc="Counting unique: "):
         line = line.strip("\r\n")
         pwd_counter[line] += 1
 
     pwd_list.close()
     mid_res = []
-    print("Done!\n"
-          "Count raw data...", file=sys.stderr)
-    for pwd, appearance in tqdm(iterable=pwd_counter.items(), total=len(pwd_counter)):
+    for pwd, appearance in tqdm(iterable=pwd_counter.items(), total=len(pwd_counter), desc="Pre-processing: "):
         segments = extract_luds(pwd)
         tag_dict = defaultdict(int)
         for tag, num in segments:
@@ -423,20 +418,20 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
             transform_groups[group].add(struct)
         mid_res.append((pwd, appearance, struct, group, chr_cls))
     del pwd_counter
-    print("Done!\n"
-          "Calculating maximal prob...", file=sys.stderr)
     res = []
-    for pwd, appearance, struct, group, chr_cls in tqdm(iterable=mid_res, total=len(mid_res)):
+    for pwd, appearance, struct, group, chr_cls in tqdm(iterable=mid_res, total=len(mid_res), desc="Calc Max Prob: "):
         to_structs = transform_groups[group]
         to_structs.add(struct)
-        mlps = []
+        min_mlp = 1e20
+        opt_pwd = pwd
         for to_struct in to_structs:
             to_pwd = transform_struct2(pwd, from_struct=struct, to_struct=to_struct)
             mlp = pcfg_scorer.minus_log2_prob(to_pwd)
-            mlps.append(mlp)
-        res.append((pwd, min(mlps), appearance))
+            if mlp < min_mlp:
+                min_mlp = mlp
+                opt_pwd = to_pwd
+        res.append((pwd, opt_pwd, min_mlp, appearance))
     del mid_res
-    print("Done!", file=sys.stderr)
     return res
 
 
@@ -448,7 +443,6 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     cracked = 0
     prev_rank = 0
     total = sum([n for n, _ in scored_pwd_list.values()])
-    target.close()
     for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
                           total=len(scored_pwd_list), desc="Estimating: "):
         num, mlp = info
@@ -456,10 +450,6 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
         prev_rank = rank
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
-        pass
-    save2.flush()
-    save2.close()
-    pass
 
 
 def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: TextIO, n: int = 100000):
@@ -468,7 +458,6 @@ def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: T
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
     scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
     total = sum([n for n, _ in scored_pwd_list.values()])
-    target.close()
     cracked = 0
     prev_rank = 0
 
@@ -481,15 +470,16 @@ def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: T
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
         pass
     ideal_res = struct_transform4ideal_improvement(pwd_list=target, pcfg_scorer=pcfg_scorer)
+    target.close()
     cracked = 0
     prev_rank = 0
-    total2 = sum([num for _, _, num in ideal_res])
-    for pwd, mlp, num in tqdm(iterable=sorted(ideal_res, key=lambda x: x[1]),
-                              total=len(ideal_res), desc="Estimating Ideal: "):
+    total2 = sum([num for _, _, _, num in ideal_res])
+    for pwd, to_pwd, mlp, num in tqdm(iterable=sorted(ideal_res, key=lambda x: x[2]),
+                                      total=len(ideal_res), desc="Estimating Ideal: "):
         rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
         prev_rank = rank
         cracked += num
-        save_ideal.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total2 * 100:.2f}\n")
+        save_ideal.write(f"{pwd}\t{to_pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total2 * 100:.2f}\n")
         pass
     save2.flush()
     save2.close()
@@ -504,18 +494,11 @@ def main():
     cli.add_argument("-t", "--target", required=True, dest="target", type=argparse.FileType("r"),
                      help="password list to be parsed")
     cli.add_argument("-n", "--n-sample", required=False, dest="n", type=int, default=100000,
-                     help="samples generated to execute Monte Carlo Simulation")
+                     help="samples generated to execute Monte Carlo Simulation, default=100000")
     cli.add_argument("-s", "--save", required=True, dest="save2", type=argparse.FileType("w"),
                      help="save the results to specified file")
     args = cli.parse_args()
     monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2)
-    pass
-    # monte_carlo_wrapper(
-    #     "./Rules/Origin/rockyou",
-    #     target=open("/home/cw/Codes/Python/PwdTools/corpora/tar/rockyou-tar.txt"),
-    #     save2=open("/home/cw/Documents/Expirements/SegLab/SimulatedCracked/rockyou-tar-actual.txt", "w"),
-    #     save_ideal=open("/home/cw/Documents/Expirements/SegLab/SimulatedCracked/rockyou-tar-ideal.txt", "w"))
-    # pass
 
 
 def test():
@@ -532,5 +515,11 @@ def test():
 
 
 if __name__ == '__main__':
-    main()
+    for corpus in ["csdn", "dodonew", "webhost", "xato"]:
+        actual_ideal_wrapper(
+            f"./Rules/Origin/{corpus}",
+            target=open(f"/home/cw/Codes/Python/PwdTools/corpora/tar/{corpus}-tar.txt"),
+            save2=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-actual.txt", "w"),
+            save_ideal=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-ideal.txt", "w"))
+        pass
     pass
