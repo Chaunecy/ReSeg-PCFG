@@ -144,7 +144,7 @@ class MyScorer:
     def __init__(self, rule: str, limit=0):
         # Information for using this grammar
         #
-        print(f"rule: {rule}", file=sys.stderr)
+        print(f"Start loading grammars...", end="", file=sys.stderr)
         self.encoding = None
 
         # The probability limit to cut-off being categorized as a password
@@ -169,15 +169,14 @@ class MyScorer:
 
         self.count_raw_base_structures = Counter()
         self.minimal_prob = sys.float_info.min
-        print("Start loading grammars...", end="", file=sys.stderr)
         self.__load_grammars()
         self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
+        print("Done!", file=sys.stderr)
 
-        print("Done!\n"
-              "Pre-processing...", end="", file=sys.stderr)
         luds2base_structures = {}
         filtered = defaultdict(lambda: [])
-        for struct in self.count_base_structures:
+
+        for struct in tqdm(self.count_base_structures, desc="Pre-processing, stage 1: "):
             lds, rm, plen = aod2lds(struct)
             if len(rm) != 0:
                 filtered[plen].append((lds, rm, struct))
@@ -187,7 +186,7 @@ class MyScorer:
                     luds2base_structures[lds] = set()
                 luds2base_structures[lds].add(struct)
             pass
-        for s in luds2base_structures:
+        for s in tqdm(luds2base_structures, desc="Pre-processing, stage 2: "):
             ls = len(s)
             if ls not in filtered:
                 continue
@@ -197,8 +196,6 @@ class MyScorer:
                 if rmd == lds:
                     luds2base_structures[s].add(origin_struct)
         del filtered
-        print("Done!\n"
-              "Generating Cache...", end="", file=sys.stderr)
         self.lds2base_structures = luds2base_structures
         self.__extend_structure = extend_dict(self.count_base_structures)
         self.__extend_years = extend_dict(self.count_years)
@@ -208,7 +205,6 @@ class MyScorer:
         self.__extend_keyboard = {k: extend_dict(v) for k, v in self.count_keyboard.items()}
         self.__extend_other = {k: extend_dict(v) for k, v in self.count_other.items()}
         self.__extend_digits = {k: extend_dict(v) for k, v in self.count_digits.items()}
-        print("Done!", file=sys.stderr)
 
     def __load_grammars(self):
         load_grammar4scorer(self, rule_directory=self.rule)
@@ -283,7 +279,6 @@ class MyScorer:
         :param passwords: passwords, do not close it please!
         :return:
         """
-        print(f"target: {passwords.name}", file=sys.stderr)
         raw_pwd_counter = defaultdict(int)
         passwords.seek(0)
         for pwd in passwords:
@@ -436,6 +431,8 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
 
 
 def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 100000):
+    print(f"rule: {rule}", file=sys.stderr)
+    print(f"target: {target.name}", file=sys.stderr)
     pcfg_scorer = MyScorer(rule=rule)
     rand_pairs = pcfg_scorer.gen_n_rand_pwd(n=n)
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
@@ -512,7 +509,12 @@ def main():
     cli.add_argument("-s", "--save", required=True, dest="save2", type=argparse.FileType("w"),
                      help="save the results to specified file")
     args = cli.parse_args()
-    monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2)
+    try:
+        monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2)
+    except KeyboardInterrupt:
+        print("You canceled the progress.\n"
+              "Exited", file=sys.stderr)
+        sys.exit(-1)
 
 
 def test():

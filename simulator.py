@@ -146,6 +146,8 @@ if __name__ == '__main__':
                             const=".png",
                             help="store the picture with suffix \".png\"")
     args = cli_parser.parse_args()
+    print("WARNING: This method is DEPRECATED. If you want to use Monte Carlo method, try scorer.py please!",
+          file=sys.stderr)
     weirPCFGv41 = WeirPCFGv41(rule=args.abs_rule_set, test=args.abs_test_set, sample_size=args.sample_size,
                               fout_gc=args.fout_gc,
                               save_figure=None if args.gc_curve is None else f"{args.gc_curve}{args.suffix}")
