@@ -404,7 +404,6 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
         line = line.strip("\r\n")
         pwd_counter[line] += 1
 
-    pwd_list.close()
     mid_res = []
     for pwd, appearance in tqdm(iterable=pwd_counter.items(), total=len(pwd_counter), desc="Pre-processing: "):
         segments = extract_luds(pwd)
@@ -431,6 +430,7 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
                 min_mlp = mlp
                 opt_pwd = to_pwd
         res.append((pwd, opt_pwd, min_mlp, appearance))
+    del transform_groups
     del mid_res
     return res
 
@@ -439,7 +439,10 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     pcfg_scorer = MyScorer(rule=rule)
     rand_pairs = pcfg_scorer.gen_n_rand_pwd(n=n)
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
+    del rand_pairs
     scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
+    target.close()
+    del pcfg_scorer
     cracked = 0
     prev_rank = 0
     total = sum([n for n, _ in scored_pwd_list.values()])
@@ -450,12 +453,18 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
         prev_rank = rank
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
+    save2.flush()
+    save2.close()
+    del minus_log_prob_list
+    del ranks
+    del scored_pwd_list
 
 
 def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: TextIO, n: int = 100000):
     pcfg_scorer = MyScorer(rule=rule)
     rand_pairs = pcfg_scorer.gen_n_rand_pwd(n=n)
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
+    del rand_pairs
     scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
     total = sum([n for n, _ in scored_pwd_list.values()])
     cracked = 0
@@ -469,7 +478,11 @@ def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: T
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
         pass
+    del scored_pwd_list
+    save2.flush()
+    save2.close()
     ideal_res = struct_transform4ideal_improvement(pwd_list=target, pcfg_scorer=pcfg_scorer)
+    del pcfg_scorer
     target.close()
     cracked = 0
     prev_rank = 0
@@ -481,8 +494,9 @@ def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: T
         cracked += num
         save_ideal.write(f"{pwd}\t{to_pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total2 * 100:.2f}\n")
         pass
-    save2.flush()
-    save2.close()
+    del ideal_res
+    del minus_log_prob_list
+    del ranks
     save_ideal.flush()
     save_ideal.close()
     pass
@@ -514,12 +528,17 @@ def test():
     pass
 
 
-if __name__ == '__main__':
-    for corpus in ["csdn", "dodonew", "webhost", "xato"]:
+def ideal():
+    for corpus in ["xato", "webhost"]:
         actual_ideal_wrapper(
             f"./Rules/Origin/{corpus}",
             target=open(f"/home/cw/Codes/Python/PwdTools/corpora/tar/{corpus}-tar.txt"),
             save2=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-actual.txt", "w"),
             save_ideal=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-ideal.txt", "w"))
         pass
+    pass
+
+
+if __name__ == '__main__':
+    main()
     pass
