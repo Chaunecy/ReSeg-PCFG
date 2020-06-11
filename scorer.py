@@ -55,7 +55,6 @@ def minus_log_prob2rank(minus_log_probs, positions, minus_log_prob):
 
 
 lds_re = re.compile(r"([a-zA-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
-luds_re = re.compile(r"([a-z]+|[A-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
 terminal_re = re.compile(r"([ADKOXY]\d+)")
 
 
@@ -69,23 +68,6 @@ def extract_lds(pwd: str) -> str:
             ret += ("D" * len(seg))
         else:
             ret += ("S" * len(seg))
-        pass
-    return ret
-    pass
-
-
-def extract_luds(pwd: str) -> List[Tuple[str, int]]:
-    segs = [s for s in luds_re.split(pwd) if len(s) > 0]
-    ret = []
-    for seg in segs:
-        if seg.isalpha() and seg.islower():
-            ret.append(("L", len(seg)))
-        elif seg.isalpha() and seg.isupper():
-            ret.append(("U", len(seg)))
-        elif seg.isdigit():
-            ret.append(("D", len(seg)))
-        else:
-            ret.append(("S", len(seg)))
         pass
     return ret
     pass
@@ -344,32 +326,6 @@ class MyScorer:
         pass
 
 
-def transform_struct2(pwd: str, from_struct: str, to_struct: str) -> str:
-    """
-    transform pwd from {from_struct} to {to_struct},
-    for example, a1b2c3d4, LDLDLDLD, LLDDLLDD -> ab12cd34
-    :param pwd:
-    :param from_struct:
-    :param to_struct:
-    :return:
-    """
-    if from_struct == to_struct:
-        return pwd
-    if len(pwd) == len(from_struct) == len(to_struct):
-
-        to_pwd = [' ' for _ in range(len(pwd))]
-        for idx, k in enumerate(from_struct):
-            _i = to_struct.index(k)
-            to_struct = to_struct[:_i] + ' ' + to_struct[_i + 1:]
-            to_pwd[_i] = pwd[idx]
-        return "".join(to_pwd)
-        pass
-    else:
-        print('unequal len for pwd and their structures')
-        raise Exception
-    pass
-
-
 def wc_l(file: TextIO):
     """
     a pure function, file will not be closed and move the pointer to the begin
@@ -388,46 +344,6 @@ def wc_l(file: TextIO):
         count += buffer.count(new_line)
     file.seek(0)
     return count
-
-
-def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
-    transform_groups = defaultdict(lambda: set())
-    pwd_counter = defaultdict(int)
-    num_lines = wc_l(pwd_list)
-    pwd_list.seek(0)
-    for line in tqdm(iterable=pwd_list, total=num_lines, desc="Counting unique: "):
-        line = line.strip("\r\n")
-        pwd_counter[line] += 1
-
-    mid_res = []
-    for pwd, appearance in tqdm(iterable=pwd_counter.items(), total=len(pwd_counter), desc="Pre-processing: "):
-        segments = extract_luds(pwd)
-        tag_dict = defaultdict(int)
-        for tag, num in segments:
-            tag_dict[tag] += num
-        struct = "".join([f"{tag * num}" for tag, num in segments])
-        group = "".join([f"{tag}{num}" for tag, num in sorted(tag_dict.items())])
-        chr_cls = tag_dict.keys()
-        if len(segments) > len(chr_cls):
-            transform_groups[group].add(struct)
-        mid_res.append((pwd, appearance, struct, group, chr_cls))
-    del pwd_counter
-    res = []
-    for pwd, appearance, struct, group, chr_cls in tqdm(iterable=mid_res, total=len(mid_res), desc="Calc Max Prob: "):
-        to_structs = transform_groups[group]
-        to_structs.add(struct)
-        min_mlp = 1e20
-        opt_pwd = pwd
-        for to_struct in to_structs:
-            to_pwd = transform_struct2(pwd, from_struct=struct, to_struct=to_struct)
-            mlp = pcfg_scorer.minus_log2_prob(to_pwd)
-            if mlp < min_mlp:
-                min_mlp = mlp
-                opt_pwd = to_pwd
-        res.append((pwd, opt_pwd, min_mlp, appearance))
-    del transform_groups
-    del mid_res
-    return res
 
 
 def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 100000):
@@ -455,48 +371,6 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     del minus_log_prob_list
     del ranks
     del scored_pwd_list
-
-
-def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: TextIO, n: int = 100000):
-    pcfg_scorer = MyScorer(rule=rule)
-    rand_pairs = pcfg_scorer.gen_n_rand_pwd(n=n)
-    minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
-    del rand_pairs
-    scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
-    total = sum([n for n, _ in scored_pwd_list.values()])
-    cracked = 0
-    prev_rank = 0
-
-    for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
-                          total=len(scored_pwd_list), desc="Estimating: "):
-        num, mlp = info
-        rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
-        prev_rank = rank
-        cracked += num
-        save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
-        pass
-    del scored_pwd_list
-    save2.flush()
-    save2.close()
-    ideal_res = struct_transform4ideal_improvement(pwd_list=target, pcfg_scorer=pcfg_scorer)
-    del pcfg_scorer
-    target.close()
-    cracked = 0
-    prev_rank = 0
-    total2 = sum([num for _, _, _, num in ideal_res])
-    for pwd, to_pwd, mlp, num in tqdm(iterable=sorted(ideal_res, key=lambda x: x[2]),
-                                      total=len(ideal_res), desc="Estimating Ideal: "):
-        rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
-        prev_rank = rank
-        cracked += num
-        save_ideal.write(f"{pwd}\t{to_pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total2 * 100:.2f}\n")
-        pass
-    del ideal_res
-    del minus_log_prob_list
-    del ranks
-    save_ideal.flush()
-    save_ideal.close()
-    pass
 
 
 def main():
@@ -527,17 +401,6 @@ def test():
     # print(pcfg_scorer.minus_log2_prob("0O9I8U7Y"))
     # print(pcfg_scorer.minus_log2_prob("custom"))
     # print(pcfg_scorer.minus_log2_prob("imsocool"))
-    pass
-
-
-def ideal():
-    for corpus in ["xato", "webhost"]:
-        actual_ideal_wrapper(
-            f"./Rules/Origin/{corpus}",
-            target=open(f"/home/cw/Codes/Python/PwdTools/corpora/tar/{corpus}-tar.txt"),
-            save2=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-actual.txt", "w"),
-            save_ideal=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-ideal.txt", "w"))
-        pass
     pass
 
 
