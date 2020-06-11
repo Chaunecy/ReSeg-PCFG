@@ -57,6 +57,7 @@ def minus_log_prob2rank(minus_log_probs, positions, minus_log_prob):
 lds_re = re.compile(r"([a-zA-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
 luds_re = re.compile(r"([a-z]+|[A-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
 terminal_re = re.compile(r"([ADKOXY]\d+)")
+tag_re = re.compile(r"([LUDS]+)")
 
 
 def extract_lds(pwd: str) -> str:
@@ -395,6 +396,12 @@ def wc_l(file: TextIO):
     return count
 
 
+def seg_of_struct(struct: str):
+    segs = [tag for tag in tag_re.split(struct) if len(tag) != 0]
+    return len(segs)
+    pass
+
+
 def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
     transform_groups = defaultdict(lambda: set())
     pwd_counter = defaultdict(int)
@@ -420,8 +427,9 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
     res = []
     for pwd, appearance, struct, group, chr_cls in tqdm(iterable=mid_res, total=len(mid_res), desc="Calc Max Prob: "):
         to_structs = transform_groups[group]
-        to_structs.add(struct)
-        min_mlp = 1e20
+        # to_structs.add(struct)
+        segs_of_origin = ""
+        min_mlp = pcfg_scorer.minus_log2_prob(pwd)
         opt_pwd = pwd
         for to_struct in to_structs:
             to_pwd = transform_struct2(pwd, from_struct=struct, to_struct=to_struct)
@@ -510,7 +518,8 @@ def main():
     cli.add_argument("-n", "--n-sample", required=False, dest="n", type=int, default=100000,
                      help="samples generated to execute Monte Carlo Simulation, default=100000")
     cli.add_argument("-s", "--save", required=True, dest="save2", type=argparse.FileType("w"),
-                     help="save the results to specified file")
+                     help="save the results to specified file, the format of the results is:\n"
+                          "pwd  minus_log2_prob appearance  guess_number    cracked_num cracked_ratio")
     args = cli.parse_args()
     monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2)
 
