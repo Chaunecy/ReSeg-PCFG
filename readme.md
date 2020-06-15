@@ -10,6 +10,19 @@ In short: A collection of tools to perform research into how humans generate pas
 
 ## Documentation
 
+### Scorer
+scorer.py is the optimized version of Monte Carlo Simulation for PCFGv4.1.
+usage: Monte Carlo Simulator for PCFGv4.1 \[-h] -r RULE -t TARGET \[-n N] -s SAVE2
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -r RULE, --rule RULE  rule set obtained by trainer
+  -t TARGET, --target TARGET
+                        password list to be parsed
+  -n N, --n-sample N    samples generated to execute Monte Carlo Simulation, default=100000
+  -s SAVE2, --save SAVE2
+                        save the results to specified file
+
 ### Academic Papers:
 Original 2009 IEEE Security and Privacy paper on PCFGs for password cracking:
 [https://ieeexplore.ieee.org/abstract/document/5207658](https://ieeexplore.ieee.org/abstract/document/5207658)

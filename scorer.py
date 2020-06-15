@@ -384,7 +384,7 @@ def main():
                      help="save the results to specified file")
     args = cli.parse_args()
     try:
-        monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2)
+        monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2, n=args.n)
     except KeyboardInterrupt:
         print("You canceled the progress.\n"
               "Exited", file=sys.stderr)
