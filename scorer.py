@@ -57,7 +57,7 @@ def minus_log_prob2rank(minus_log_probs, positions, minus_log_prob):
 lds_re = re.compile(r"([a-zA-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
 luds_re = re.compile(r"([a-z]+|[A-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
 terminal_re = re.compile(r"([ADKOXY]\d+)")
-tag_re = re.compile(r"([LUDS]+)")
+tag_re = re.compile(r"(L+|D+|S+|U+)")
 
 
 def extract_lds(pwd: str) -> str:
@@ -174,11 +174,10 @@ class MyScorer:
         self.__load_grammars()
         self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
 
-        print("Done!\n"
-              "Pre-processing...", end="", file=sys.stderr)
+        print("Done!", file=sys.stderr)
         luds2base_structures = {}
         filtered = defaultdict(lambda: [])
-        for struct in self.count_base_structures:
+        for struct in tqdm(self.count_base_structures, desc="Pre-processing, stage 1: "):
             lds, rm, plen = aod2lds(struct)
             if len(rm) != 0:
                 filtered[plen].append((lds, rm, struct))
@@ -188,7 +187,7 @@ class MyScorer:
                     luds2base_structures[lds] = set()
                 luds2base_structures[lds].add(struct)
             pass
-        for s in luds2base_structures:
+        for s in tqdm(luds2base_structures, desc="Pre-processing, stage 2: "):
             ls = len(s)
             if ls not in filtered:
                 continue
@@ -198,8 +197,6 @@ class MyScorer:
                 if rmd == lds:
                     luds2base_structures[s].add(origin_struct)
         del filtered
-        print("Done!\n"
-              "Generating Cache...", end="", file=sys.stderr)
         self.lds2base_structures = luds2base_structures
         self.__extend_structure = extend_dict(self.count_base_structures)
         self.__extend_years = extend_dict(self.count_years)
@@ -209,7 +206,6 @@ class MyScorer:
         self.__extend_keyboard = {k: extend_dict(v) for k, v in self.count_keyboard.items()}
         self.__extend_other = {k: extend_dict(v) for k, v in self.count_other.items()}
         self.__extend_digits = {k: extend_dict(v) for k, v in self.count_digits.items()}
-        print("Done!", file=sys.stderr)
 
     def __load_grammars(self):
         load_grammar4scorer(self, rule_directory=self.rule)
@@ -425,13 +421,19 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
         mid_res.append((pwd, appearance, struct, group, chr_cls))
     del pwd_counter
     res = []
+    struct_seg_counter = defaultdict(int)
     for pwd, appearance, struct, group, chr_cls in tqdm(iterable=mid_res, total=len(mid_res), desc="Calc Max Prob: "):
         to_structs = transform_groups[group]
-        # to_structs.add(struct)
-        segs_of_origin = ""
+        if struct not in struct_seg_counter:
+            struct_seg_counter[struct] = seg_of_struct(struct)
+        n_seg_of_origin = struct_seg_counter[struct]
         min_mlp = pcfg_scorer.minus_log2_prob(pwd)
         opt_pwd = pwd
         for to_struct in to_structs:
+            if to_struct not in struct_seg_counter:
+                struct_seg_counter[to_struct] = seg_of_struct(to_struct)
+            if struct_seg_counter[to_struct] > n_seg_of_origin:
+                continue
             to_pwd = transform_struct2(pwd, from_struct=struct, to_struct=to_struct)
             mlp = pcfg_scorer.minus_log2_prob(to_pwd)
             if mlp < min_mlp:
@@ -468,27 +470,27 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     del scored_pwd_list
 
 
-def actual_ideal_wrapper(rule: str, target: TextIO, save2: TextIO, save_ideal: TextIO, n: int = 100000):
+def actual_ideal_wrapper(rule: str, target: TextIO, save_ideal: TextIO, n: int = 100000):
     pcfg_scorer = MyScorer(rule=rule)
     rand_pairs = pcfg_scorer.gen_n_rand_pwd(n=n)
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
     del rand_pairs
-    scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
-    total = sum([n for n, _ in scored_pwd_list.values()])
-    cracked = 0
-    prev_rank = 0
-
-    for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
-                          total=len(scored_pwd_list), desc="Estimating: "):
-        num, mlp = info
-        rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
-        prev_rank = rank
-        cracked += num
-        save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
-        pass
-    del scored_pwd_list
-    save2.flush()
-    save2.close()
+    # scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
+    # total = sum([n for n, _ in scored_pwd_list.values()])
+    # cracked = 0
+    # prev_rank = 0
+    #
+    # for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
+    #                       total=len(scored_pwd_list), desc="Estimating: "):
+    #     num, mlp = info
+    #     rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
+    #     prev_rank = rank
+    #     cracked += num
+    #     save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
+    #     pass
+    # del scored_pwd_list
+    # save2.flush()
+    # save2.close()
     ideal_res = struct_transform4ideal_improvement(pwd_list=target, pcfg_scorer=pcfg_scorer)
     del pcfg_scorer
     target.close()
@@ -538,16 +540,17 @@ def test():
 
 
 def ideal():
-    for corpus in ["xato", "webhost"]:
+    for corpus in ["webhost"]:
         actual_ideal_wrapper(
             f"./Rules/Origin/{corpus}",
-            target=open(f"/home/cw/Codes/Python/PwdTools/corpora/tar/{corpus}-tar.txt"),
-            save2=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-actual.txt", "w"),
-            save_ideal=open(f"/home/cw/Documents/Expirements/SegLab/SimulatedCracked/{corpus}-tar-ideal.txt", "w"))
+            target=open(f"/home/cw/Codes/Python/PwdTools/corpora/src/{corpus}-src.txt"),
+            # save2=open(f"/home/cw/Documents/Expirements/SegLab/4src/{corpus}-tar-actual.txt", "w"),
+            save_ideal=open(f"/home/cw/Documents/Expirements/SegLab/4src/{corpus}-src-ideal.txt", "w"),
+            n=1000000)
         pass
     pass
 
 
 if __name__ == '__main__':
-    main()
+    ideal()
     pass
