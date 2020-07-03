@@ -203,6 +203,10 @@ def parse_command_line(program_info):
         default=program_info['coverage'],
         type=float
     )
+    parser.add_argument(
+        '--save-seg', help="save segments here", dest="save_seg",
+        required=False, type=argparse.FileType("w"), default=sys.stdout
+    )
     # Parse all the args and save them    
     args = parser.parse_args()
     # Standard Options
@@ -219,7 +223,7 @@ def parse_command_line(program_info):
     # Advanced Options
     # program_info['smoothing'] = args.smoothing
     program_info['coverage'] = args.coverage
-
+    program_info['save_seg'] = args.save_seg
     # Sanity checking of values
     #
     # Check to make sure smoothing makes sense
@@ -272,6 +276,7 @@ def main():
         'smoothing': 0.01,
         'coverage': 0.6,
         'max_len': 21,
+        'save_seg': '',
     }
 
     print_banner()
@@ -438,7 +443,7 @@ def main():
     )
 
     # Initialize the PCFG Password parse
-    pcfg_parser = PCFGPasswordParser(multiword_detector)
+    pcfg_parser = PCFGPasswordParser(multiword_detector, program_info['save_seg'])
 
     # Loop until we hit the end of the file
     try:
