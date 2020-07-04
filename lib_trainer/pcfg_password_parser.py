@@ -97,21 +97,21 @@ class PCFGPasswordParser:
         # Identify e-mail and web sites before doing other string parsing
         # this is because they can have digits + special characters
 
-        found_emails, found_providers = email_detection(section_list)
-
-        for email in found_emails:
-            self.count_emails[email] += 1
-        for provider in found_providers:
-            self.count_email_providers[provider] += 1
-
-        found_urls, found_hosts, found_prefixes = website_detection(section_list)
-
-        for url in found_urls:
-            self.count_website_urls[url] += 1
-        for host in found_hosts:
-            self.count_website_hosts[host] += 1
-        for prefix in found_prefixes:
-            self.count_website_prefixes[prefix] += 1
+        # found_emails, found_providers = email_detection(section_list)
+        #
+        # for email in found_emails:
+        #     self.count_emails[email] += 1
+        # for provider in found_providers:
+        #     self.count_email_providers[provider] += 1
+        #
+        # found_urls, found_hosts, found_prefixes = website_detection(section_list)
+        #
+        # for url in found_urls:
+        #     self.count_website_urls[url] += 1
+        # for host in found_hosts:
+        #     self.count_website_hosts[host] += 1
+        # for prefix in found_prefixes:
+        #     self.count_website_prefixes[prefix] += 1
 
         # Identify years in the dataset. This is done before other parsing
         # because parsing after this may classify years as another type
@@ -132,22 +132,26 @@ class PCFGPasswordParser:
 
         # Identify pure alpha strings in the dataset
 
-        found_alpha_strings, found_mask_list = alpha_detection(section_list, self.multiword_detector)
-
-        self._update_counter_len_indexed(self.count_alpha, found_alpha_strings)
-        self._update_counter_len_indexed(self.count_alpha_masks, found_mask_list)
+        section_list, alpha_list, mask_list, digits_list, specials_list \
+            = self.multiword_detector.parse_sections(section_list)
+        # found_alpha_strings, found_mask_list = alpha_detection(section_list, self.multiword_detector)
+        #
+        self._update_counter_len_indexed(self.count_alpha, alpha_list)
+        self._update_counter_len_indexed(self.count_alpha_masks, mask_list)
+        self._update_counter_len_indexed(self.count_digits, digits_list)
+        self._update_counter_len_indexed(self.count_other, specials_list)
 
         # Identify pure digit strings in the dataset
 
-        found_digit_strings = digit_detection(section_list)
-
-        self._update_counter_len_indexed(self.count_digits, found_digit_strings)
+        # found_digit_strings = self.multiword_detector.parse_sections(section_list)
+        #
+        # self._update_counter_len_indexed(self.count_digits, found_digit_strings)
 
         # Categorize everything else as other
 
-        found_other_strings = other_detection(section_list)
-
-        self._update_counter_len_indexed(self.count_other, found_other_strings)
+        # found_other_strings = self.multiword_detector.parse_sections(section_list)
+        #
+        # self._update_counter_len_indexed(self.count_other, found_other_strings)
 
         # Calculate the counts of the individual sections for PRINCE dictionary 
         # creation

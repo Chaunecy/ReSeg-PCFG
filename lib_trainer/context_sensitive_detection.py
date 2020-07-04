@@ -48,12 +48,31 @@ def detect_context_sensitive(section):
     # below
     #
     context_sensitive_replacements = [
-        "<3",
         ";p",
         ":p",
-        "*0*", 
-        "#1"
-        ]
+        "*0*",
+        "#1",
+        "No.1",
+        "no.1",
+        "No.",
+        "i<3",
+        "I<3",
+        "<3",
+        "Mr.",
+        "mr.",
+        "MR.",
+        "MS.",
+        "Ms.",
+        "ms.",
+        "Mz.",
+        "mz.",
+        "MZ.",
+        "St.",
+        "st.",
+        "Dr.",
+        "dr.",
+
+    ]
     
     # Look for each of the replacements
     for replacement in context_sensitive_replacements:

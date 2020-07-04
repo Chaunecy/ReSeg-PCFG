@@ -56,7 +56,7 @@ from lib_trainer.omen.omen_file_output import save_omen_rules_to_disk
 from lib_trainer.omen.evaluate_password import find_omen_level
 from lib_trainer.omen.evaluate_password import calc_omen_keyspace
 
-from lib_trainer.multiword_detector import MultiWordDetector
+from lib_trainer.my_multiword_detector import MyMultiWordDetector
 
 from lib_trainer.pcfg_password_parser import PCFGPasswordParser
 
@@ -205,7 +205,7 @@ def parse_command_line(program_info):
     )
     parser.add_argument(
         '--save-seg', help="save segments here", dest="save_seg",
-        required=False, type=argparse.FileType("w"), default=sys.stdout
+        required=False, type=argparse.FileType("w"), default=None
     )
     # Parse all the args and save them    
     args = parser.parse_args()
@@ -349,7 +349,7 @@ def main():
     ag = AlphabetGenerator(program_info['alphabet_size'], program_info['ngram'])
 
     # Intitialize the multi-word detector
-    multiword_detector = MultiWordDetector(
+    multiword_detector = MyMultiWordDetector(
         threshold=5,
         min_len=4,
         max_len=21)
@@ -382,7 +382,7 @@ def main():
         print("Exception: " + str(msg))
         print("Exiting...")
         return
-
+    multiword_detector.new_lendict()
     # Save the learned alphabet
     program_info['alphabet'] = ag.get_alphabet()
 
@@ -456,7 +456,7 @@ def main():
                 print(str(num_parsed_so_far // 1000000) + ' Million')
 
             # Parse OMEN info
-            omen_trainer.parse(password)
+            # omen_trainer.parse(password)
 
             # Parse the pcfg info
             pcfg_parser.parse(password)
