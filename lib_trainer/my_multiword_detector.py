@@ -302,7 +302,7 @@ class MyMultiWordDetector:
                         parsed.append((t, f"D{len(t)}"))
                         extracted_digits.append(t)
                     else:
-                        parsed.append((t, f"S{len(t)}"))
+                        parsed.append((t, f"O{len(t)}"))
                         extracted_specials.append(t)
         return parsed, extracted_letters, extracted_mask, extracted_digits, extracted_specials
         pass
