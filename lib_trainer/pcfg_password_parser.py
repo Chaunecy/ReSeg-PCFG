@@ -160,7 +160,7 @@ class PCFGPasswordParser:
 
         # Now after all the other parsing is done, create the base structures
         if self.save2 is not None:
-            write2 = [f"{password}\t"]
+            write2 = [f"{password}"]
             for sec, tag in section_list:
                 write2.append(f"{sec}\t{tag}")
             self.save2.write("\t".join(write2))
