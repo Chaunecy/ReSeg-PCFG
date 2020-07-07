@@ -10,21 +10,15 @@
 #############################################################################
 
 
-import sys
 from collections import Counter
 
-# Local imports
-from .leet_detector import LeetDetector
-from .keyboard_walk import detect_keyboard_walk
-from .email_detection import email_detection
-from .website_detection import website_detection
-from .year_detection import year_detection
-from .context_sensitive_detection import context_sensitive_detection
-from .alpha_detection import alpha_detection
-from .digit_detection import digit_detection
-from .other_detection import other_detection
 from .base_structure import base_structure_creation
+from .context_sensitive_detection import context_sensitive_detection
+# Local imports
+from .keyboard_walk import detect_keyboard_walk
+from .my_leet_detector import MyL33tDetector
 from .prince_metrics import prince_evaluation
+from .year_detection import year_detection
 
 
 ## Responsible for parsing passwords to train a PCFG grammar
@@ -42,9 +36,9 @@ class PCFGPasswordParser:
         self.multiword_detector = multiword_detector
 
         # Initialize Leet Speak Detector
-        self.leet_detector = LeetDetector(self.multiword_detector)
+        self.leet_detector = MyL33tDetector(self.multiword_detector)
 
-        ## Used for debugging/statistics
+        # Used for debugging/statistics
         #
         # These numbers won't add up to total passwords parsed since
         # some passwords might have multiple "base words". For example
@@ -79,7 +73,7 @@ class PCFGPasswordParser:
         else:
             self.save2 = None
 
-    ## Main function called to parse an individual password
+    # Main function called to parse an individual password
     #
     # Returns:
     #    True: If everything worked correctly
@@ -130,10 +124,12 @@ class PCFGPasswordParser:
         for cs_string in found_context_sensitive_strings:
             self.count_context_sensitive[cs_string] += 1
 
+        parsed_section_list, l33t_list = self.leet_detector.parse_sections(section_list)
+        self._update_counter_len_indexed(self.count_alpha, l33t_list)
         # Identify pure alpha strings in the dataset
 
         section_list, alpha_list, mask_list, digits_list, specials_list \
-            = self.multiword_detector.parse_sections(section_list)
+            = self.multiword_detector.parse_sections(parsed_section_list)
         # found_alpha_strings, found_mask_list = alpha_detection(section_list, self.multiword_detector)
         #
         self._update_counter_len_indexed(self.count_alpha, alpha_list)
