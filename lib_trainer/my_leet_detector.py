@@ -41,6 +41,10 @@
 # Creating this as a class in case I want to add more advanced features later
 #
 import pickle
+import re
+from collections import defaultdict
+
+from lib_trainer.my_multiword_detector import MyMultiWordDetector
 
 
 class MyL33tDetector:
@@ -81,6 +85,21 @@ class MyL33tDetector:
             '2': ['z'],
             '$': ['s']
         }
+        self.l33ts = set()
+        self.__min_l33ts = 4
+        self.__re_lds = re.compile(r"^([0-9]+|[a-zA-Z]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)$")
+
+    def detect_l33t(self, pwd):
+        if self.__re_lds.search(pwd):
+            return False
+        lower = pwd.lower()
+        if len(set(lower)) < 3:
+            return False
+        is_l33t, l33t = self._find_leet(lower)
+        if is_l33t:
+            self.l33ts.add(lower)
+            self.__min_l33ts = len(min(self.l33ts, key=lambda x: len(x)))
+        return is_l33t
 
     def _unleet(self, password):
         npasswd = ""
@@ -92,12 +111,17 @@ class MyL33tDetector:
         return npasswd
 
     def _find_leet(self, password):
+        # if password.isalpha() or password.isdigit():
+        #     return False, ""
         working_pw = self._unleet(password.lower())
         if not working_pw or password == working_pw:
-            return None
+            return False, ""
         else:
-            multi_num, result = self.multi_word_detector.parse(working_pw, threshold=5)
-            return multi_num, result
+            count = self.multi_word_detector._get_count(working_pw)
+            if count >= 5:
+                return True, password
+            else:
+                return False, ""
 
     # Detects if the input has l33t replacement
     #
@@ -116,59 +140,86 @@ class MyL33tDetector:
     #     } 
     #
     def parse(self, password):
+        if len(password) < self.__min_l33ts or self.__re_lds.search(password) is not None:
+            return [(password, None)], [], []
         l33t_list = []
-        leet = self._find_leet(password)
-        if leet:
-            multi_num, compositions = leet
-            if multi_num > 1:
-                l33t = compositions[0][0]
-                prob = compositions[0][1]
-                if prob < 1e-15:
-                    return False, [(password, None)], []
-                origin = []
-                i = 0
-                for part in l33t:
-                    restore = password[i:i + len(part)]
-                    if len(restore) >= 4 and restore != part and not restore.isdigit():
-                        origin.append((restore, f"A{len(restore)}"))
-                        l33t_list.append(restore)
+        lower_pwd = password.lower()
+        tar = [(lower_pwd, 0)]
+        while len(tar) != 0:
+            n_tar = []
+            for t, base in tar:
+                for l33t in sorted(self.l33ts, key=lambda x: len(x), reverse=True):
+                    idx = t.find(l33t)
+                    if idx < 0:
+                        continue
+                    l33t_list.append((l33t, base + idx, True))
+                    if idx >= self.__min_l33ts:
+                        n_tar.append((t[:idx], base))
+                    elif idx > 0:
+                        l33t_list.append((t[:idx], base, False))
+                    if len(t) - (idx + len(l33t)) >= self.__min_l33ts:
+                        n_tar.append((t[idx + len(l33t):], idx + len(l33t)))
+                    break
+            tar = n_tar
+        if len(l33t_list) == 0:
+            return [(password, None)], [], []
+        l33t_list = sorted(l33t_list, key=lambda x: x[1])
+        section_list = []
+        leet_list = []
+        mask_list = []
+        for l33t, idx, is_l33t in l33t_list:
+            leet = password[idx:idx + len(l33t)]
+            lower_leet = leet.lower()
+            if is_l33t:
+                section_list.append((lower_leet, f"A{len(l33t)}"))
+                leet_list.append(lower_leet)
+                mask = ""
+                for e in leet:
+                    if e.isupper():
+                        mask += "U"
+                    elif e.islower():
+                        mask += "L"
                     else:
-                        return False, [(password, None)], []
-                    i += len(part)
-                return True, origin, l33t_list
-            elif multi_num == 1:
-                return True, [(password, f"A{len(password)}")], []
-            return False, [(password, None)], []
-
-        return False, [(password, None)], []
+                        mask += "L"
+                mask_list.append(mask)
+            else:
+                section_list.append((lower_leet, None))
+        return section_list, leet_list, mask_list
 
     def parse_sections(self, sections):
         parsed_sections = []
         parsed_l33t = []
+        parsed_mask = []
         for section, tag in sections:
             if tag is not None:
                 parsed_sections.append((section, tag))
                 continue
-            if len(section) < 4 or section.isdigit() or section.isalpha():
-                parsed_sections.append((section, tag))
+            if len(section) < self.__min_l33ts or self.__re_lds.search(section):
+                parsed_sections.append((section, None))
                 continue
-            is_leet, parsed, l33t_list = self.parse(section)
-            parsed_sections.extend(parsed)
-            parsed_l33t.extend(l33t_list)
-        return parsed_sections, parsed_l33t
+            section_list, leet_list, mask_list = self.parse(section)
+            parsed_sections.extend(section_list)
+            parsed_l33t.extend(leet_list)
+            parsed_mask.extend(mask_list)
+        return parsed_sections, parsed_l33t, parsed_mask
 
 
 def main():
-    # m = MultiWordDetector()
+    m = MyMultiWordDetector()
+    m.train_file(open("/home/cw/Documents/Expirements/SegLab/Corpora/csdn-src.txt"))
     # for pwd in ["input123", "input123", "input123", "input123", "input123", "input123",
     #             "hello123", "hello123", "hello123", "hello123", "hello123", "hello123",
     #             "inputhello", "inputhello", "inputhello"]:
     #     m.train(pwd)
-    nm = pickle.load(open("./multi-csdn-tar.pickle", "rb"))
-    l33t = MyL33tDetector(nm)
-    sections = [["h3llo", None]]
-    sections = l33t.parse_sections(sections)
-    print(sections)
+    # nm = pickle.load(open("/home/cw/Codes/Python/SegLab/src/SegFinder/lib_seg/multi-csdn-tar.pickle", "rb"))
+    l33t = MyL33tDetector(m)
+    l33t.detect_l33t("p@ssw0rd")
+    sections = [["p@ssw0rd", None]]
+    print("hello")
+    cc = l33t.parse_sections([("P@ssw0rdabp@ssw0rd", None)])
+    print(cc)
+    # sections = l33t.parse_sections(sections)
+    # print(sections)
     # print(res)
     pass
 

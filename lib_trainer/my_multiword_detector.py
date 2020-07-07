@@ -289,8 +289,9 @@ class MyMultiWordDetector:
                 is_multi, multi_words = self.parse(part)
                 for t in multi_words:
                     if t.isalpha():
-                        parsed.append((t, f"A{len(t)}"))
-                        extracted_letters.append(t)
+                        lower_t = t.lower()
+                        parsed.append((lower_t, f"A{len(t)}"))
+                        extracted_letters.append(lower_t)
                         mask = ""
                         for c in t:
                             if c.isupper():

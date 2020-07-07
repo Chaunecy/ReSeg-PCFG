@@ -35,33 +35,27 @@
 
 # Including this to print error message if python < 3.0 is used
 from __future__ import print_function
-import sys
 
 import argparse
 import os
+import sys
 import traceback
 from collections import Counter
 
 # Local imports
 from lib_trainer.banner_info import print_banner
-from lib_trainer.trainer_file_input import detect_file_encoding
-from lib_trainer.trainer_file_input import TrainerFileInput
-from lib_trainer.trainer_file_input import get_confirmation
-
-from lib_trainer.trainer_file_output import create_rule_folders
-
+from lib_trainer.config_file import save_config_file
+from lib_trainer.my_multiword_detector import MyMultiWordDetector
 from lib_trainer.omen.alphabet_generator import AlphabetGenerator
 from lib_trainer.omen.alphabet_lookup import AlphabetLookup
-from lib_trainer.omen.omen_file_output import save_omen_rules_to_disk
-from lib_trainer.omen.evaluate_password import find_omen_level
 from lib_trainer.omen.evaluate_password import calc_omen_keyspace
-
-from lib_trainer.my_multiword_detector import MyMultiWordDetector
-
+from lib_trainer.omen.omen_file_output import save_omen_rules_to_disk
 from lib_trainer.pcfg_password_parser import PCFGPasswordParser
-
-from lib_trainer.config_file import save_config_file
 from lib_trainer.save_pcfg_data import save_pcfg_data
+from lib_trainer.trainer_file_input import TrainerFileInput
+from lib_trainer.trainer_file_input import detect_file_encoding
+from lib_trainer.trainer_file_input import get_confirmation
+from lib_trainer.trainer_file_output import create_rule_folders
 
 # Check for python3 and error out if not
 if sys.version_info[0] < 3:
@@ -357,7 +351,7 @@ def main():
     # Used for progress_bar
     num_parsed_so_far = 0
     print("Printing out status after every million passwords parsed")
-    print("------------")
+    print("------------Multi word detector pre-training")
 
     # Loop until we hit the end of the file
     try:
@@ -444,7 +438,7 @@ def main():
 
     # Initialize the PCFG Password parse
     pcfg_parser = PCFGPasswordParser(multiword_detector, program_info['save_seg'])
-
+    pcfg_parser.init_l33t(program_info['training_file'], program_info['encoding'])
     # Loop until we hit the end of the file
     try:
         password = file_input.read_password()
@@ -521,8 +515,8 @@ def main():
                 print(str(num_parsed_so_far // 1000000) + ' Million')
 
             # Find OMEN level of password
-            level = find_omen_level(omen_trainer, password)
-            omen_levels_count[level] += 1
+            # level = find_omen_level(omen_trainer, password)
+            # omen_levels_count[level] += 1
 
             # Get the next password
             password = file_input.read_password()

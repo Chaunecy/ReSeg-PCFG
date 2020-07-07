@@ -8,8 +8,8 @@
 # process one password at at time that is sent to it
 #
 #############################################################################
-
-
+import sys
+import traceback
 from collections import Counter
 
 from .base_structure import base_structure_creation
@@ -18,6 +18,7 @@ from .context_sensitive_detection import context_sensitive_detection
 from .keyboard_walk import detect_keyboard_walk
 from .my_leet_detector import MyL33tDetector
 from .prince_metrics import prince_evaluation
+from .trainer_file_input import TrainerFileInput
 from .year_detection import year_detection
 
 
@@ -73,6 +74,30 @@ class PCFGPasswordParser:
         else:
             self.save2 = None
 
+    def init_l33t(self, training_set, encoding):
+        file_input = TrainerFileInput(training_set, encoding)
+        num_parsed_so_far = 0
+        try:
+            password = file_input.read_password()
+            while password:
+
+                # Print status indicator if needed
+                num_parsed_so_far += 1
+                if num_parsed_so_far % 1000000 == 0:
+                    print(str(num_parsed_so_far // 1000000) + ' Million')
+                # pcfg_parser.parse(password)
+                self.leet_detector.detect_l33t(password)
+                # Get the next password
+                password = file_input.read_password()
+
+        except Exception as msg:
+            traceback.print_exc(file=sys.stdout)
+            print("Exception: " + str(msg))
+            print("Exiting...")
+            return
+        print(f"init l33t done", file=sys.stderr)
+        pass
+
     # Main function called to parse an individual password
     #
     # Returns:
@@ -83,7 +108,6 @@ class PCFGPasswordParser:
 
         # Since keyboard combos can look like many other parsings, filter them
         # out first
-
         section_list, found_walks = detect_keyboard_walk(password)
 
         self._update_counter_len_indexed(self.count_keyboard, found_walks)
@@ -124,12 +148,13 @@ class PCFGPasswordParser:
         for cs_string in found_context_sensitive_strings:
             self.count_context_sensitive[cs_string] += 1
 
-        parsed_section_list, l33t_list = self.leet_detector.parse_sections(section_list)
-        self._update_counter_len_indexed(self.count_alpha, l33t_list)
+        section_list, leet_list, mask_list = self.leet_detector.parse_sections(section_list)
+        self._update_counter_len_indexed(self.count_alpha, leet_list)
+        self._update_counter_len_indexed(self.count_alpha_masks, mask_list)
         # Identify pure alpha strings in the dataset
 
         section_list, alpha_list, mask_list, digits_list, specials_list \
-            = self.multiword_detector.parse_sections(parsed_section_list)
+            = self.multiword_detector.parse_sections(section_list)
         # found_alpha_strings, found_mask_list = alpha_detection(section_list, self.multiword_detector)
         #
         self._update_counter_len_indexed(self.count_alpha, alpha_list)
@@ -170,7 +195,7 @@ class PCFGPasswordParser:
 
         return True
 
-    ## Updates a Python Counter object when the item is lenght indexed
+    # Updates a Python Counter object when the item is lenght indexed
     #
     # For example, if the individual counts are broken up by length of input
     # Aka A1 = 'a', A3 = 'cat', A5 = 'chair'
