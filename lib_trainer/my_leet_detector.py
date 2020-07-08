@@ -123,7 +123,6 @@ class MyL33tDetector:
                     dict_l33t[c] = {}
                 dict_l33t = dict_l33t[c]
             dict_l33t["\x03"] = True
-        print(f"init l33t done", file=sys.stderr)
         pass
 
     def _unleet(self, password):
@@ -193,7 +192,7 @@ class MyL33tDetector:
         i = 0
         prev_i = 0
         cur_i = i
-        while i < len_pwd:
+        while i < len_pwd and cur_i < len_pwd:
             c = lower_pwd[cur_i]
             if c in dict_l33ts:
                 a_l33t += c
@@ -232,6 +231,10 @@ class MyL33tDetector:
                 not_l33t = lower_pwd[prev_i:i]
                 a_l33t = ""
                 dict_l33ts = self.dict_l33ts
+        if cur_i != i:
+            l33t_list.append((lower_pwd[i:cur_i], i, False))
+        else:
+            print("h")
         return l33t_list
         pass
 
@@ -244,7 +247,6 @@ class MyL33tDetector:
         if len(l33t_list) == 0:
             return [(password, None)], [], []
         l33t_list = sorted(l33t_list, key=lambda x: x[1])
-        print(l33t_list)
         section_list = []
         leet_list = []
         mask_list = []
@@ -292,7 +294,7 @@ def main():
     # l33t.detect_l33t("p@ssw0rd")
     sections = [["p@ssw0rd", None]]
     print("hello")
-    cc = l33t.parse_sections([("P@ssw0rdsabp@ssw0rd", None)])
+    cc = l33t.parse_sections([("abP@ssw0rds", None)])
     print(cc)
     # sections = l33t.parse_sections(sections)
     # print(sections)
