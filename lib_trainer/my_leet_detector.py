@@ -40,9 +40,10 @@
 #
 # Creating this as a class in case I want to add more advanced features later
 #
+import collections
 import pickle
 import re
-from collections import defaultdict
+import sys
 
 from lib_trainer.my_multiword_detector import MyMultiWordDetector
 
@@ -86,20 +87,44 @@ class MyL33tDetector:
             '$': ['s']
         }
         self.l33ts = set()
+        self.dict_l33ts = {}
         self.__min_l33ts = 4
+        self.__max_l33ts = 8
         self.__re_lds = re.compile(r"^([0-9]+|[a-zA-Z]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)$")
+        self.__re_invalid = re.compile(
+            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e].{1,3}|.{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e])$")
 
     def detect_l33t(self, pwd):
         if self.__re_lds.search(pwd):
             return False
         lower = pwd.lower()
-        if len(set(lower)) < 3:
+        counter = collections.Counter(lower)
+        if len(counter) < 3 or self.__re_invalid.search(pwd) or max(counter.values()) >= len(pwd) / 2:
             return False
         is_l33t, l33t = self._find_leet(lower)
         if is_l33t:
             self.l33ts.add(lower)
-            self.__min_l33ts = len(min(self.l33ts, key=lambda x: len(x)))
+            if len(lower) > self.__max_l33ts:
+                self.__max_l33ts = len(lower)
+            if len(lower) < self.__min_l33ts:
+                self.__min_l33ts = len(lower)
         return is_l33t
+
+    def gen_dict_l33t(self):
+        l33ts = sorted(self.l33ts, key=lambda x: len(x), reverse=True)
+        if len(l33ts) == 0:
+            return
+        self.__min_l33ts = len(l33ts[-1])
+        self.__max_l33ts = len(l33ts[0])
+        for l33t in l33ts:
+            dict_l33t = self.dict_l33ts
+            for c in l33t:
+                if c not in dict_l33t:
+                    dict_l33t[c] = {}
+                dict_l33t = dict_l33t[c]
+            dict_l33t["\x03"] = True
+        print(f"init l33t done", file=sys.stderr)
+        pass
 
     def _unleet(self, password):
         npasswd = ""
@@ -139,31 +164,87 @@ class MyL33tDetector:
     #      }
     #     } 
     #
+    def __get_mask(self, seg):
+        mask = ""
+        for e in seg:
+            if e.isupper():
+                mask += "U"
+            elif e.islower():
+                mask += "L"
+            else:
+                mask += "L"
+        return mask
+
+    def extract_l33t(self, pwd):
+        """
+        find the longest match of l33t
+        :param pwd:  password to be identified
+        :return: list of [segment, start_idx, is_l33t]
+        """
+        l33t_list = []
+        # candidate for a l33t
+        a_l33t = ""
+        # this is not a l33t, but I want to keep it to simplify the following steps
+        not_l33t = ""
+        # dict tree for l33ts, to speedup
+        dict_l33ts = self.dict_l33ts
+        lower_pwd = pwd.lower()
+        len_pwd = len(pwd)
+        i = 0
+        prev_i = 0
+        cur_i = i
+        while i < len_pwd:
+            c = lower_pwd[cur_i]
+            if c in dict_l33ts:
+                a_l33t += c
+                dict_l33ts = dict_l33ts[c]
+                if "\x03" in dict_l33ts:
+                    add_a_l33t = ""
+                    bak_add_a_l33t = ""
+                    for addi in range(cur_i + 1, min(cur_i + self.__max_l33ts - len(a_l33t) + 1, len_pwd)):
+                        addc = lower_pwd[addi]
+                        if addc not in dict_l33ts:
+                            break
+                        dict_l33ts = dict_l33ts[addc]
+                        add_a_l33t += addc
+                        if "\x03" in dict_l33ts:
+                            bak_add_a_l33t = add_a_l33t
+                        pass
+                    if bak_add_a_l33t != "":
+                        a_l33t += bak_add_a_l33t
+                        cur_i += len(bak_add_a_l33t)
+                    # find a l33t
+                    if len(not_l33t) != 0:
+                        l33t_list.append((not_l33t, cur_i - len(a_l33t) - len(not_l33t) + 1, False))
+                        not_l33t = ""
+                    l33t_list.append((a_l33t, cur_i - len(a_l33t) + 1, True))
+                    # successfully find a l33t, move forward i
+                    i += len(a_l33t)
+                    cur_i = i
+                    # used to find not_l33t
+                    prev_i = i
+                    a_l33t = ""
+                    dict_l33ts = self.dict_l33ts
+                cur_i += 1
+            else:
+                i += 1
+                cur_i = i
+                not_l33t = lower_pwd[prev_i:i]
+                a_l33t = ""
+                dict_l33ts = self.dict_l33ts
+        return l33t_list
+        pass
+
     def parse(self, password):
+        if password in self.l33ts:
+            return [(password, f"A{len(password)}")], [password], [self.__get_mask(password)]
         if len(password) < self.__min_l33ts or self.__re_lds.search(password) is not None:
             return [(password, None)], [], []
-        l33t_list = []
-        lower_pwd = password.lower()
-        tar = [(lower_pwd, 0)]
-        while len(tar) != 0:
-            n_tar = []
-            for t, base in tar:
-                for l33t in sorted(self.l33ts, key=lambda x: len(x), reverse=True):
-                    idx = t.find(l33t)
-                    if idx < 0:
-                        continue
-                    l33t_list.append((l33t, base + idx, True))
-                    if idx >= self.__min_l33ts:
-                        n_tar.append((t[:idx], base))
-                    elif idx > 0:
-                        l33t_list.append((t[:idx], base, False))
-                    if len(t) - (idx + len(l33t)) >= self.__min_l33ts:
-                        n_tar.append((t[idx + len(l33t):], idx + len(l33t)))
-                    break
-            tar = n_tar
+        l33t_list = self.extract_l33t(password)
         if len(l33t_list) == 0:
             return [(password, None)], [], []
         l33t_list = sorted(l33t_list, key=lambda x: x[1])
+        print(l33t_list)
         section_list = []
         leet_list = []
         mask_list = []
@@ -173,14 +254,7 @@ class MyL33tDetector:
             if is_l33t:
                 section_list.append((lower_leet, f"A{len(l33t)}"))
                 leet_list.append(lower_leet)
-                mask = ""
-                for e in leet:
-                    if e.isupper():
-                        mask += "U"
-                    elif e.islower():
-                        mask += "L"
-                    else:
-                        mask += "L"
+                mask = self.__get_mask(leet)
                 mask_list.append(mask)
             else:
                 section_list.append((lower_leet, None))
@@ -205,18 +279,20 @@ class MyL33tDetector:
 
 
 def main():
-    m = MyMultiWordDetector()
-    m.train_file(open("/home/cw/Documents/Expirements/SegLab/Corpora/csdn-src.txt"))
-    # for pwd in ["input123", "input123", "input123", "input123", "input123", "input123",
-    #             "hello123", "hello123", "hello123", "hello123", "hello123", "hello123",
-    #             "inputhello", "inputhello", "inputhello"]:
-    #     m.train(pwd)
+    # m = MyMultiWordDetector()
+    # m.train_file(open("/home/cw/Documents/Expirements/SegLab/Corpora/csdn-src.txt"))
+    # pickle.dump(m, open("./tmpcsdnmulti.pickle", "wb"))
+    m = pickle.load(open("./tmpcsdnmulti.pickle", "rb"))
     # nm = pickle.load(open("/home/cw/Codes/Python/SegLab/src/SegFinder/lib_seg/multi-csdn-tar.pickle", "rb"))
     l33t = MyL33tDetector(m)
-    l33t.detect_l33t("p@ssw0rd")
+    for line in open("/home/cw/Codes/Python/pcfg_cracker/Rules/csdnl33t/L33t/all.txt"):
+        line = line.strip("\r\n")
+        l33t.l33ts.add(line)
+    l33t.gen_dict_l33t()
+    # l33t.detect_l33t("p@ssw0rd")
     sections = [["p@ssw0rd", None]]
     print("hello")
-    cc = l33t.parse_sections([("P@ssw0rdabp@ssw0rd", None)])
+    cc = l33t.parse_sections([("P@ssw0rdsabp@ssw0rd", None)])
     print(cc)
     # sections = l33t.parse_sections(sections)
     # print(sections)

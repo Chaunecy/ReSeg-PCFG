@@ -439,6 +439,7 @@ def main():
     # Initialize the PCFG Password parse
     pcfg_parser = PCFGPasswordParser(multiword_detector, program_info['save_seg'])
     pcfg_parser.init_l33t(program_info['training_file'], program_info['encoding'])
+    pcfg_parser.leet_detector.gen_dict_l33t()
     # Loop until we hit the end of the file
     try:
         password = file_input.read_password()
