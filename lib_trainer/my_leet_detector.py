@@ -233,8 +233,6 @@ class MyL33tDetector:
                 dict_l33ts = self.dict_l33ts
         if cur_i != i:
             l33t_list.append((lower_pwd[i:cur_i], i, False))
-        else:
-            print("h")
         return l33t_list
         pass
 
@@ -292,8 +290,6 @@ def main():
         l33t.l33ts.add(line)
     l33t.gen_dict_l33t()
     # l33t.detect_l33t("p@ssw0rd")
-    sections = [["p@ssw0rd", None]]
-    print("hello")
     cc = l33t.parse_sections([("abP@ssw0rds", None)])
     print(cc)
     # sections = l33t.parse_sections(sections)
