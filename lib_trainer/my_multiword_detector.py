@@ -122,6 +122,8 @@ class MyMultiWordDetector:
     def _get_count(self, alpha_string):
         return self.dtree.get(alpha_string.lower(), 0)
 
+    def get_count(self, string):
+        return self.dtree.get(string.lower(), 0)
     # Recusivly attempts to identify multiword parsing
     # 
     # Returns

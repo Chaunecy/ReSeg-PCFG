@@ -92,14 +92,15 @@ class MyL33tDetector:
         self.__max_l33ts = 8
         self.__re_lds = re.compile(r"^([0-9]+|[a-zA-Z]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)$")
         self.__re_invalid = re.compile(
-            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e].{1,3}|.{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e])$")
+            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-zA-Z]{2,3}"
+            r"|[a-zA-Z]{2,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2})$")
 
     def detect_l33t(self, pwd):
-        if self.__re_lds.search(pwd):
+        if self.__re_lds.search(pwd) or self.__re_invalid.search(pwd):
             return False
         lower = pwd.lower()
         counter = collections.Counter(lower)
-        if len(counter) < 3 or self.__re_invalid.search(pwd) or max(counter.values()) >= len(pwd) / 2:
+        if len(counter) < 3 or max(counter.values()) >= len(pwd) / 2:
             return False
         is_l33t, l33t = self._find_leet(lower)
         if is_l33t:
