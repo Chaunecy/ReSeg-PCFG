@@ -43,9 +43,6 @@
 import collections
 import pickle
 import re
-import sys
-
-from lib_trainer.my_multiword_detector import MyMultiWordDetector
 
 
 class MyL33tDetector:
@@ -80,20 +77,23 @@ class MyL33tDetector:
             '6': ['b'],
             '1': ['i'],
             '0': ['o'],
-            '9': ['q'],
+            # '9': ['q'],
             '5': ['s'],
             '7': ['t'],
-            '2': ['z'],
+            '2': ['too'],
+            '4': ['for'],
             '$': ['s']
         }
         self.l33ts = set()
+        self.l33t_map = {}
         self.dict_l33ts = {}
         self.__min_l33ts = 4
         self.__max_l33ts = 8
         self.__re_lds = re.compile(r"^([0-9]+|[a-zA-Z]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)$")
         self.__re_invalid = re.compile(
             r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-zA-Z]{2,3}"
-            r"|[a-zA-Z]{2,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2})$")
+            r"|[a-zA-Z]{2,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}"
+            r"|(6+|@)[a-z]{3,}|[a-z]{3,}(6+|@))$")
 
     def detect_l33t(self, pwd):
         if self.__re_lds.search(pwd) or self.__re_invalid.search(pwd):
@@ -105,6 +105,9 @@ class MyL33tDetector:
         is_l33t, l33t = self._find_leet(lower)
         if is_l33t:
             self.l33ts.add(lower)
+            if lower not in self.l33t_map:
+                self.l33t_map[lower] = 0
+            self.l33t_map[lower] += 1
             if len(lower) > self.__max_l33ts:
                 self.__max_l33ts = len(lower)
             if len(lower) < self.__min_l33ts:
@@ -184,15 +187,13 @@ class MyL33tDetector:
         l33t_list = []
         # candidate for a l33t
         a_l33t = ""
-        # this is not a l33t, but I want to keep it to simplify the following steps
-        not_l33t = ""
         # dict tree for l33ts, to speedup
         dict_l33ts = self.dict_l33ts
         lower_pwd = pwd.lower()
         len_pwd = len(pwd)
         i = 0
-        prev_i = 0
         cur_i = i
+        len_l33ted = 0
         while i < len_pwd and cur_i < len_pwd:
             c = lower_pwd[cur_i]
             if c in dict_l33ts:
@@ -214,27 +215,40 @@ class MyL33tDetector:
                         a_l33t += bak_add_a_l33t
                         cur_i += len(bak_add_a_l33t)
                     # find a l33t
-                    if len(not_l33t) != 0:
-                        l33t_list.append((not_l33t, cur_i - len(a_l33t) - len(not_l33t) + 1, False))
-                        not_l33t = ""
-                    l33t_list.append((a_l33t, cur_i - len(a_l33t) + 1, True))
+                    len_a_l33t = len(a_l33t)
+                    l33t_list.append((cur_i - len_a_l33t + 1, len_a_l33t, True))
+                    # if len_l33ted == pwd_len, return, else, add not_l33t parts
+                    len_l33ted += len_a_l33t
                     # successfully find a l33t, move forward i
-                    i += len(a_l33t)
+                    i += len_a_l33t
                     cur_i = i
                     # used to find not_l33t
-                    prev_i = i
                     a_l33t = ""
                     dict_l33ts = self.dict_l33ts
                 cur_i += 1
             else:
                 i += 1
                 cur_i = i
-                not_l33t = lower_pwd[prev_i:i]
                 a_l33t = ""
                 dict_l33ts = self.dict_l33ts
-        if cur_i != i:
-            l33t_list.append((lower_pwd[i:cur_i], i, False))
-        return l33t_list
+        if len_l33ted == len_pwd:
+            return l33t_list
+        elif len(l33t_list) == 0:
+            return [(0, len_pwd, False)]
+        else:
+            n_list = set()
+            is_l33t_set = set()
+            n_list.add(0)
+            for i, sl, is_l33t in l33t_list:
+                n_list.add(i)
+                n_list.add(i + sl)
+                is_l33t_set.add(i)
+            n_list.add(len_pwd)
+            n_list = sorted(n_list)
+            n_l33t_list = []
+            for n_i, pwd_i in enumerate(n_list[:-1]):
+                n_l33t_list.append((pwd_i, n_list[n_i + 1] - pwd_i, pwd_i in is_l33t_set))
+            return n_l33t_list
         pass
 
     def parse(self, password):
@@ -249,16 +263,16 @@ class MyL33tDetector:
         section_list = []
         leet_list = []
         mask_list = []
-        for l33t, idx, is_l33t in l33t_list:
-            leet = password[idx:idx + len(l33t)]
-            lower_leet = leet.lower()
+        for idx, len_l33t, is_l33t in l33t_list:
+            leet = password[idx:idx + len_l33t]
             if is_l33t:
-                section_list.append((lower_leet, f"A{len(l33t)}"))
+                lower_leet = leet.lower()
+                section_list.append((lower_leet, f"A{len(lower_leet)}"))
                 leet_list.append(lower_leet)
                 mask = self.__get_mask(leet)
                 mask_list.append(mask)
             else:
-                section_list.append((lower_leet, None))
+                section_list.append((leet, None))
         return section_list, leet_list, mask_list
 
     def parse_sections(self, sections):
@@ -286,6 +300,9 @@ def main():
     m = pickle.load(open("./tmpcsdnmulti.pickle", "rb"))
     # nm = pickle.load(open("/home/cw/Codes/Python/SegLab/src/SegFinder/lib_seg/multi-csdn-tar.pickle", "rb"))
     l33t = MyL33tDetector(m)
+    for repl, bak in l33t.replacements.items():
+        print(f"\t{repl} & {','.join(bak)} & ", end=" \\\\\n")
+        pass
     for line in open("/home/cw/Codes/Python/pcfg_cracker/Rules/csdnl33t/L33t/all.txt"):
         line = line.strip("\r\n")
         l33t.l33ts.add(line)

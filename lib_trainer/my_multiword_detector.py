@@ -292,7 +292,7 @@ class MyMultiWordDetector:
                 for t in multi_words:
                     if t.isalpha():
                         lower_t = t.lower()
-                        parsed.append((lower_t, f"A{len(t)}"))
+                        parsed.append((lower_t, f"A{len(lower_t)}"))
                         extracted_letters.append(lower_t)
                         mask = ""
                         for c in t:

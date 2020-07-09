@@ -13,20 +13,20 @@ import traceback
 from collections import Counter
 
 from .base_structure import base_structure_creation
-from .context_sensitive_detection import context_sensitive_detection
 # Local imports
 from .keyboard_walk import detect_keyboard_walk
+from .my_context_detection import detect_context_sections
 from .my_leet_detector import MyL33tDetector
 from .prince_metrics import prince_evaluation
 from .trainer_file_input import TrainerFileInput
 from .year_detection import year_detection
 
 
-## Responsible for parsing passwords to train a PCFG grammar
+# Responsible for parsing passwords to train a PCFG grammar
 #
 class PCFGPasswordParser:
 
-    ## Initializes the class and all the data structures
+    # Initializes the class and all the data structures
     #
     # multiword_detector: A previously trained multi word detector
     #                      that has had the base_words established for it
@@ -52,7 +52,7 @@ class PCFGPasswordParser:
         # Keep track of the number of leet replacements detected
         self.num_leet = 0
 
-        ## The following counters keep track of global running stats
+        # The following counters keep track of global running stats
         #
         self.count_keyboard = {}
         self.count_emails = Counter()
@@ -143,9 +143,10 @@ class PCFGPasswordParser:
         # straight type classifications, (alpha, digit, etc), but want to doing
         # it after other types of classifations.
 
-        found_context_sensitive_strings = context_sensitive_detection(section_list)
+        # found_context_sensitive_strings = context_sensitive_detection(section_list)
+        section_list, found_contexts = detect_context_sections(section_list)
 
-        for cs_string in found_context_sensitive_strings:
+        for cs_string in found_contexts:
             self.count_context_sensitive[cs_string] += 1
 
         section_list, leet_list, mask_list = self.leet_detector.parse_sections(section_list)
@@ -182,8 +183,14 @@ class PCFGPasswordParser:
         # Now after all the other parsing is done, create the base structures
         if self.save2 is not None:
             write2 = [f"{password}"]
+            restored = "".join([sec for sec, _ in section_list])
+            if len(restored) != len(password):
+                print(section_list, file=sys.stderr)
+                print(f"{password} != {restored}, some error occurred!"
+                      f"", file=sys.stderr)
             for sec, tag in section_list:
-                write2.append(f"{sec}\t{tag}")
+                write2.append(sec)
+                write2.append(tag)
             self.save2.write("\t".join(write2))
             self.save2.write("\n")
         is_supported, base_structure = base_structure_creation(section_list)
