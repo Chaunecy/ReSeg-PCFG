@@ -91,9 +91,9 @@ class MyL33tDetector:
         self.__max_l33ts = 8
         self.__re_lds = re.compile(r"^([0-9]+|[a-zA-Z]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)$")
         self.__re_invalid = re.compile(
-            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-zA-Z]{2,3}"
-            r"|[a-zA-Z]{2,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}"
-            r"|[^14][a-z]{3,}|[a-z]{3,}[0-9$]+)$")
+            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-zA-Z]{1,3}"
+            r"|[a-zA-Z]{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}"
+            r"|[^14][a-zA-Z]+([^u]?)|[a-z]4ever|[a-zA-Z]{3,}[0-9$]+)$")
         self.__re_end_at = re.compile(r"^([A-Za-z]+)@+$")
 
     def detect_l33t(self, pwd):
