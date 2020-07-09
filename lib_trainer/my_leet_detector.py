@@ -93,7 +93,8 @@ class MyL33tDetector:
         self.__re_invalid = re.compile(
             r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-zA-Z]{2,3}"
             r"|[a-zA-Z]{2,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}"
-            r"|(6+|@)[a-z]{3,}|[a-z]{3,}(6+|@))$")
+            r"|[^14][a-z]{3,}|[a-z]{3,}[0-9$]+)$")
+        self.__re_end_at = re.compile(r"^([A-Za-z]+)@+$")
 
     def detect_l33t(self, pwd):
         if self.__re_lds.search(pwd) or self.__re_invalid.search(pwd):
@@ -145,7 +146,14 @@ class MyL33tDetector:
         if not working_pw or password == working_pw:
             return False, ""
         else:
-            count = self.multi_word_detector._get_count(working_pw)
+            count = self.multi_word_detector.get_count(working_pw)
+            prefix = self.__re_end_at.findall(password)
+            if len(prefix) > 0:  # returned prefix if a list
+                prefix_count = self.multi_word_detector.get_count(prefix[0])
+                if prefix_count > 1.5 * count:
+                    return False, ""
+            # if self.__re_end_at.search(count):
+
             if count >= 5:
                 return True, password
             else:
