@@ -150,6 +150,8 @@ class PCFGPasswordParser:
             self.count_context_sensitive[cs_string] += 1
 
         section_list, leet_list, mask_list = self.leet_detector.parse_sections(section_list)
+        for leet in leet_list:
+            self.leet_detector.l33t_map[leet] += 1
         self._update_counter_len_indexed(self.count_alpha, leet_list)
         self._update_counter_len_indexed(self.count_alpha_masks, mask_list)
         # Identify pure alpha strings in the dataset
