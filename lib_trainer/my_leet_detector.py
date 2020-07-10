@@ -90,17 +90,18 @@ class MyL33tDetector:
         self.__min_l33ts = 4
         self.__max_l33ts = 8
         self.__re_lds = re.compile(r"^([0-9]+|[a-zA-Z]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)$")
+        # lower string
         self.__re_invalid = re.compile(
-            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-zA-Z]{1,3}"  # except (S or D) + L
-            r"|[a-zA-Z]{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}"  # except L + (S or D)
-            r"|[^14][a-zA-Z]+([^uU]?)"  # except 5scott
-            r"|[a-zA-Z]4[eE][vV][eE][Rr]"  # except a4ever, b4ever
-            r"|1[a-zA-Z]{1,4}[^uU]"  # except 1hateu, 1loveu
-            r"|[a-zA-Z]{3,}[0-9$]+)$")
-        self.__re_end_at = re.compile(r"^([A-Za-z]+)@+$")
+            r"^([\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}[a-z]{1,3}"  # except (S or D) + L
+            r"|[a-z]{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,2}"  # except L + (S or D)
+            r"|[^14][a-z]+([^u]?)"  # except 5scott
+            r"|[a-z]4ever"  # except a4ever, b4ever
+            r"|1[a-z]{1,4}[^u]"  # except 1hateu, 1loveu
+            r"|[a-z]{3,}[0-9$]+)$")
+        self.__re_end_at = re.compile(r"^([a-z]+)@+$")
 
     def detect_l33t(self, pwd):
-        if self.__re_lds.search(pwd) or self.__re_invalid.search(pwd):
+        if self.__re_lds.search(pwd) or self.__re_invalid.search(pwd.lower()):
             return False
         lower = pwd.lower()
         counter = collections.Counter(lower)
