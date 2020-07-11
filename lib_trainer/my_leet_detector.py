@@ -130,6 +130,8 @@ class MyL33tDetector:
         self.__min_l33ts = len(l33ts[-1])
         self.__max_l33ts = len(l33ts[0])
         for l33t in l33ts:
+            if len(l33t) < 2 * self.__min_l33ts:
+                break
             for i in range(self.__min_l33ts, len(l33t) - self.__min_l33ts + 1):
                 left = l33t[:i]
                 right = l33t[i:]
@@ -140,7 +142,6 @@ class MyL33tDetector:
                     del self.l33t_map[l33t]
                     break
                 pass
-            pass
         for l33t in self.l33t_map:
             dict_l33t = self.dict_l33ts
             for c in l33t:
