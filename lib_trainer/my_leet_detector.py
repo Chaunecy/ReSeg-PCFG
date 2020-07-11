@@ -96,8 +96,8 @@ class MyL33tDetector:
             r"[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}[a-z]{1,3}"  # except (S or D) + L
             r"|[0-9]+[a-z]{1,2}|[a-z]{1,2}[0-9]+"  # remove m150, 
             r"|[a-z]{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}"  # except L + (S or D)
-            r"|[^14]{1,2}[a-z]+([^u]?)"  # except 5scott
-            r"|[a-z]4ever"  # except a4ever, b4ever
+            r"|[02356789@]{1,2}[a-z]+"  # except 5scott
+            r"|[a-z0-9]4(ever|life)"  # except a4ever, b4ever
             r"|1[a-z]{1,4}[^u]"  # except 1hateu, 1loveu
             r"|1il(ov|uv).+"  # except 1iloveyou
             r"|[a-z]{3,}[0-9$]+"
