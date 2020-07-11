@@ -43,6 +43,7 @@
 import collections
 import pickle
 import re
+import sys
 
 
 class MyL33tDetector:
@@ -84,7 +85,6 @@ class MyL33tDetector:
             '4': ['for'],
             '$': ['s']
         }
-        self.l33ts = set()
         self.l33t_map = {}
         self.dict_l33ts = {}
         self.__min_l33ts = 4
@@ -96,11 +96,12 @@ class MyL33tDetector:
             r"[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}[a-z]{1,3}"  # except (S or D) + L
             r"|[0-9]+[a-z]{1,2}|[a-z]{1,2}[0-9]+"  # remove m150, 
             r"|[a-z]{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}"  # except L + (S or D)
-            r"|[^14][a-z]+([^u]?)"  # except 5scott
+            r"|[^14]{1,2}[a-z]+([^u]?)"  # except 5scott
             r"|[a-z]4ever"  # except a4ever, b4ever
             r"|1[a-z]{1,4}[^u]"  # except 1hateu, 1loveu
+            r"|1il(ov|uv).+"  # except 1iloveyou
             r"|[a-z]{3,}[0-9$]+"
-            r"|.*(000)?webhost.*)$")
+            r"|(000)?we?bh(o?st)?)$")
         self.__re_end_at = re.compile(r"^([a-z]+)@+$")
 
     def detect_l33t(self, pwd):
@@ -112,7 +113,6 @@ class MyL33tDetector:
             return False
         is_l33t, l33t = self._find_leet(lower)
         if is_l33t:
-            self.l33ts.add(lower)
             if lower not in self.l33t_map:
                 self.l33t_map[lower] = 0
             self.l33t_map[lower] += 1
@@ -123,18 +123,32 @@ class MyL33tDetector:
         return is_l33t
 
     def gen_dict_l33t(self):
-        l33ts = sorted(self.l33ts, key=lambda x: len(x), reverse=True)
+        print("cleaning l33t... ", end="", file=sys.stderr)
+        l33ts = sorted(self.l33t_map.keys(), key=lambda x: len(x), reverse=True)
         if len(l33ts) == 0:
             return
         self.__min_l33ts = len(l33ts[-1])
         self.__max_l33ts = len(l33ts[0])
         for l33t in l33ts:
+            for i in range(self.__min_l33ts, len(l33t) - self.__min_l33ts + 1):
+                left = l33t[:i]
+                right = l33t[i:]
+                if left in self.l33t_map and self.multi_word_detector.get_count(right) >= 5:
+                    del self.l33t_map[l33t]
+                    break
+                if right in self.l33t_map and self.multi_word_detector.get_count(left) >= 5:
+                    del self.l33t_map[l33t]
+                    break
+                pass
+            pass
+        for l33t in self.l33t_map:
             dict_l33t = self.dict_l33ts
             for c in l33t:
                 if c not in dict_l33t:
                     dict_l33t[c] = {}
                 dict_l33t = dict_l33t[c]
             dict_l33t["\x03"] = True
+        print("Done!", file=sys.stderr)
         pass
 
     def _unleet(self, password):
@@ -150,6 +164,9 @@ class MyL33tDetector:
         # if password.isalpha() or password.isdigit():
         #     return False, ""
         working_pw = self._unleet(password.lower())
+        if working_pw == "ooowebhost":
+            password = password[3:]
+            working_pw = "webhost"
         if not working_pw or password == working_pw:
             return False, ""
         else:
@@ -267,7 +284,7 @@ class MyL33tDetector:
         pass
 
     def parse(self, password):
-        if password in self.l33ts:
+        if password in self.l33t_map:
             return [(password, f"A{len(password)}")], [password], [self.__get_mask(password)]
         if len(password) < self.__min_l33ts or self.__re_lds.search(password) is not None:
             return [(password, None)], [], []
@@ -317,10 +334,6 @@ def main():
     l33t = MyL33tDetector(m)
     for repl, bak in l33t.replacements.items():
         print(f"\t{repl} & {','.join(bak)} & ", end=" \\\\\n")
-        pass
-    for line in open("/home/cw/Codes/Python/pcfg_cracker/Rules/csdnl33t/L33t/all.txt"):
-        line = line.strip("\r\n")
-        l33t.l33ts.add(line)
     l33t.gen_dict_l33t()
     # l33t.detect_l33t("p@ssw0rd")
     cc = l33t.parse_sections([("abP@ssw0rds", None)])
