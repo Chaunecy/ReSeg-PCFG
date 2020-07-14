@@ -1,4 +1,23 @@
-ld = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+#!/usr/bin/env python3
+
+
+###############################################################################
+# This file contains the functionality to detect context sensitive replacements
+#
+# Examples include strings that contain multiple character types that have
+# context sensitive meaning when combined. For example ';p', '#1', '<3'
+#
+###############################################################################
+
+
+"""
+letters and digits
+"""
+all_letters = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+all_digits = set("0123456789")
+"""
+Context sensitive instances
+"""
 context_dict = [
     ";p",
     ":p",
@@ -28,17 +47,28 @@ context_dict = [
 
 
 def detect_context(section: str):
+    """
+    find the context sensitive instance in a section
+    :param section: a sub-string of a password
+    :return: [(sec, tag)] list and [context] list
+    """
     ret = []
     len_sec = len(section)
 
     for context in context_dict:
         len_x = len(context)
         idx = section.find(context)
+        # not found
         if idx < 0:
             continue
-        if context[-1] in ld and idx + len_x < len_sec and section[idx + len_x] in ld:
+        # first chr of context of same class with previous chr
+        if idx + len_x < len_sec \
+                and ((context[-1] in all_letters and section[idx + len_x] in all_letters)
+                     or (context[-1] in all_digits and section[idx + len_x] in all_digits)):
             continue
-        if idx > 0 and (context[0] in ld) and (section[idx - 1] in ld):
+        # last chr of context of same class with
+        if idx > 0 and (((context[0] in all_letters) and (section[idx - 1] in all_letters))
+                        or ((context[0] in all_digits) and (section[idx - 1] in all_digits))):
             continue
         if idx > 0:
             ret.append((section[:idx], None))
@@ -50,6 +80,11 @@ def detect_context(section: str):
 
 
 def detect_context_sections(sections_list):
+    """
+    tagging given sections, and return tagged sections
+    :param sections_list: List[(section, tag)]
+    :return: List[(section, tag)], List[context]
+    """
     parsed_sections = []
     contexts = []
     for section, tag in sections_list:
@@ -63,3 +98,4 @@ def detect_context_sections(sections_list):
 
 
 pass
+

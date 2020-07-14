@@ -8,7 +8,7 @@ from lib_trainer.alpha_detection import alpha_detection
 from lib_trainer.digit_detection import digit_detection
 from lib_trainer.keyboard_walk import detect_keyboard_walk
 from lib_trainer.multiword_detector import MultiWordDetector
-from lib_trainer.my_context_detection import detect_context_sections
+from lib_trainer.context_sensitive_detection import context_sensitive_detection
 from lib_trainer.other_detection import other_detection
 from lib_trainer.year_detection import year_detection
 
@@ -32,7 +32,7 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO):
     for password, num in pwd_counter.items():
         section_list, found_walks = detect_keyboard_walk(password)
         _ = year_detection(section_list)
-        section_list, found_contexts = detect_context_sections(section_list)
+        _ = context_sensitive_detection(section_list)
         _, _ = alpha_detection(section_list, multiword_detector)
         _ = digit_detection(section_list)
         _ = other_detection(section_list)
