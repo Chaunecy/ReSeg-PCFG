@@ -70,6 +70,9 @@ class MyL33tDetector:
         # Checking multiple replacements is a higher priority target simply
         # because '1' can map to both 'L', and 'i', fairly frequently.
         #
+        # todo https://qntm.org/l33t \
+        #      this is a table showing possible l33t transformations
+        #      the next step is implementation
         self.replacements = {
             # '4': ['a', 'h'],
             '@': ['a'],
