@@ -7,20 +7,49 @@ from collections import Counter, defaultdict
 from math import log2, ceil
 from typing import List, Tuple, TextIO, Any, Dict
 
-import numpy
-from tqdm import tqdm
-
 from lib_scorer.grammar_io import load_grammar as load_grammar4scorer
 
 """
 Note that OMEN scorer is not considered here
 if prob for OMEN is not 0, use lib_scorer please
+WARNING: 
+L33t has not been considered. so passwords with l33t will not be correctly evaluated.
 """
+
+terminal_re = re.compile(r"([ADKOXY]\d+)")
+
+
+def split_ado(string):
+    """
+    a replacement for re
+    :param string: any string
+    :return: alpha, digit, other parts in a list
+    """
+    prev_chr_type = None
+    acc = ""
+    parts = []
+    for c in string:
+        if c.isalpha():
+            cur_chr_type = "alpha"
+        elif c.isdigit():
+            cur_chr_type = "digit"
+        else:
+            cur_chr_type = "other"
+        if prev_chr_type is None:
+            acc = c
+        elif prev_chr_type == cur_chr_type:
+            acc += c
+        else:
+            parts.append(acc)
+            acc = c
+        prev_chr_type = cur_chr_type
+    parts.append(acc)
+    return parts
 
 
 def extend_dict(counter: Counter):
     items = list(counter.keys())
-    cum_counts = numpy.array(list(counter.values())).cumsum()
+    cum_counts = my_cumsum(list(counter.values()))
     return counter, items, cum_counts
     pass
 
@@ -34,16 +63,27 @@ def pick_extend(extend: (Counter, List[str], [])):
     pass
 
 
-def gen_rank_from_minus_log_prob(minus_log_prob_pairs: List[Tuple[float, str]]) -> Tuple[numpy.ndarray, numpy.ndarray]:
+def my_cumsum(lst: List[float]):
+    if len(lst) <= 0:
+        return []
+    acc = 0
+    cumsum = []
+    for v in lst:
+        acc += v
+        cumsum.append(acc)
+    return cumsum
+
+
+def gen_rank_from_minus_log_prob(minus_log_prob_pairs: List[Tuple[float, str]]) -> Tuple[List[float], List[float]]:
     """
     calculate the ranks according to Monte Carlo method
     :param minus_log_prob_pairs: List of (minus log prob, password) tuples
     :return: minus_log_probs and corresponding ranks
     """
-    minus_log_probs = numpy.fromiter((lp for lp, _ in minus_log_prob_pairs), float)
+    minus_log_probs = [lp for lp, _ in minus_log_prob_pairs]
     minus_log_probs.sort()
     logn = log2(len(minus_log_probs))
-    positions = (2 ** (minus_log_probs - logn)).cumsum()
+    positions = my_cumsum([2 ** (mlp - logn) for mlp in minus_log_probs])
     return minus_log_probs, positions
     pass
 
@@ -54,12 +94,8 @@ def minus_log_prob2rank(minus_log_probs, positions, minus_log_prob):
     pass
 
 
-lds_re = re.compile(r"([a-zA-Z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
-terminal_re = re.compile(r"([ADKOXY]\d+)")
-
-
 def extract_lds(pwd: str) -> str:
-    segs = [s for s in lds_re.split(pwd) if len(s) > 0]
+    segs = split_ado(pwd)
     ret = ""
     for seg in segs:
         if seg.isalpha():
@@ -73,7 +109,16 @@ def extract_lds(pwd: str) -> str:
     pass
 
 
-def aod2lds(raw_struct: str) -> (str, List[Tuple[int, int]], int):
+def ado2lds(raw_struct: str) -> (str, List[Tuple[int, int]], int):
+    """
+    Note that the length of Tag X is unknown, here I assign it length 2.
+    This is a trade off.
+
+    X, K, these two tags is hard to parse. So passwords containing these
+    will be parsed in another way.
+    :param raw_struct: structure of password
+    :return: what password's structures may be, (LLLDDD, removed, 6)
+    """
     # if raw_struct.find("X") > -1 or raw_struct.find("K") > -1:
     #     return use_all
     parts = terminal_re.findall(raw_struct)
@@ -110,6 +155,12 @@ def aod2lds(raw_struct: str) -> (str, List[Tuple[int, int]], int):
 
 
 def rm_substr(struct: str, rm: List[Tuple[int, int]]) -> str:
+    """
+    remove substr "rm" from struct
+    :param struct: struct to be parsed
+    :param rm: List[(start_pos, length)]
+    :return: removed struct
+    """
     res = ""
     for i, s in enumerate(struct):
         need_rm = False
@@ -152,14 +203,14 @@ class MyScorer:
         self.count_raw_base_structures = Counter()
         self.minimal_prob = sys.float_info.min
         self.__load_grammars()
-        self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
+        self.__terminal_re = terminal_re
         print("Done!", file=sys.stderr)
 
         luds2base_structures = {}
         filtered = defaultdict(lambda: [])
-
-        for struct in tqdm(self.count_base_structures, desc="Pre-processing, stage 1: "):
-            lds, rm, plen = aod2lds(struct)
+        print("Pre-processing...", file=sys.stderr)
+        for struct in self.count_base_structures:
+            lds, rm, plen = ado2lds(struct)
             if len(rm) != 0:
                 filtered[plen].append((lds, rm, struct))
                 pass
@@ -168,7 +219,7 @@ class MyScorer:
                     luds2base_structures[lds] = set()
                 luds2base_structures[lds].add(struct)
             pass
-        for s in tqdm(luds2base_structures, desc="Pre-processing, stage 2: "):
+        for s in luds2base_structures:
             ls = len(s)
             if ls not in filtered:
                 continue
@@ -257,7 +308,7 @@ class MyScorer:
 
     def calc_minus_log2_prob_from_file(self, passwords: TextIO) -> Dict[Any, Tuple[int, float]]:
         """
-
+        return a dict, whose key is pwd, value is tuple of (appearance, minus_log_prob)
         :param passwords: passwords, do not close it please!
         :return:
         """
@@ -267,20 +318,24 @@ class MyScorer:
             pwd = pwd.strip("\r\n")
             raw_pwd_counter[pwd] += 1
         pwd_counter = defaultdict(lambda: (0, .0))
-        for pwd, num in tqdm(iterable=raw_pwd_counter.items(), total=len(raw_pwd_counter),
-                             desc="Calc prob: "):
+        print("Calc prob...", file=sys.stderr)
+        for pwd, num in raw_pwd_counter.items():
             pwd_counter[pwd] = (num, self.minus_log2_prob(pwd))
         return pwd_counter
         pass
 
-    def gen_n_rand_pwd(self, n: int = 10000) -> List[Tuple[float, str]]:
+    def gen_n_rand_pwd(self, n: int) -> List[Tuple[float, str]]:
         pairs = []
-        for _ in tqdm(iterable=range(n), desc="Sampling: "):
+        for _ in range(n):
             pairs.append(self.gen_rand_pwd())
         return pairs
         pass
 
     def gen_rand_pwd(self) -> Tuple[float, str]:
+        """
+        generate a random password and get its minus log probability
+        :return: (minus_log_prob, pwd)
+        """
         log_prob = 0
         pwd = ""
         ext_structs = self.__extend_structure
@@ -350,18 +405,23 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     print(f"rule: {rule}", file=sys.stderr)
     print(f"target: {target.name}", file=sys.stderr)
     pcfg_scorer = MyScorer(rule=rule)
+    # sampling n passwords
     rand_pairs = pcfg_scorer.gen_n_rand_pwd(n=n)
+    # generate corresponding rank list
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
     del rand_pairs
+    # scoring passwords in test set
     scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
     target.close()
     del pcfg_scorer
     cracked = 0
     prev_rank = 0
     total = sum([n for n, _ in scored_pwd_list.values()])
-    for pwd, info in tqdm(iterable=sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False),
-                          total=len(scored_pwd_list), desc="Estimating: "):
+    # estimating
+    print("Estimating...", file=sys.stderr)
+    for pwd, info in sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False):
         num, mlp = info
+        # rank should be an integer, and larger than previous one
         rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
         prev_rank = rank
         cracked += num
@@ -392,16 +452,11 @@ def main():
 
 
 def test():
-    pcfg_scorer = MyScorer(rule="./Rules/Origin/rockyou")
+    pcfg_scorer = MyScorer(rule="./Rules/")
     usr_in = ""
     while usr_in != "exit":
         usr_in = input("Type in password: ")
         print(pcfg_scorer.minus_log2_prob(usr_in))
-    # print(pcfg_scorer.minus_log2_prob("iluvyandel"))
-    # print(pcfg_scorer.minus_log2_prob("0O9I8U7Y"))
-    # print(pcfg_scorer.minus_log2_prob("custom"))
-    # print(pcfg_scorer.minus_log2_prob("imsocool"))
-    pass
 
 
 if __name__ == '__main__':

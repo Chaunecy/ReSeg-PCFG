@@ -25,9 +25,35 @@
 # then attempt to break up low occurence words into smaller base words
 #
 import copy
-import pickle
-import re
 from typing import List, TextIO
+
+
+def split_ado(string):
+    """
+    a replacement for re
+    :param string: any string
+    :return: alpha, digit, other parts in a list
+    """
+    prev_chr_type = None
+    acc = ""
+    parts = []
+    for c in string:
+        if c.isalpha():
+            cur_chr_type = "alpha"
+        elif c.isdigit():
+            cur_chr_type = "digit"
+        else:
+            cur_chr_type = "other"
+        if prev_chr_type is None:
+            acc = c
+        elif prev_chr_type == cur_chr_type:
+            acc += c
+        else:
+            parts.append(acc)
+            acc = c
+        prev_chr_type = cur_chr_type
+    parts.append(acc)
+    return parts
 
 
 class MyMultiWordDetector:
@@ -65,7 +91,6 @@ class MyMultiWordDetector:
         #
         self.dtree = {"#1": 5}
         self.__min_len_dtree = {}
-        self.__lds = re.compile(r"([A-Za-z]+|[0-9]+|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+)")
         self.lendict = {}
 
         # Trains on an input passwords
@@ -90,7 +115,7 @@ class MyMultiWordDetector:
         # Lowercase the password since multiword training is not being done
         # on capitalization or CamelCase
         password = input_password.lower()
-        parts = self.__lds.findall(password)
+        parts = split_ado(password)
         for part in parts:
             if len(part) < self.min_len:
                 if part not in self.__min_len_dtree:
@@ -124,6 +149,7 @@ class MyMultiWordDetector:
 
     def get_count(self, string):
         return self.dtree.get(string.lower(), 0)
+
     # Recusivly attempts to identify multiword parsing
     # 
     # Returns
@@ -286,7 +312,7 @@ class MyMultiWordDetector:
             if tag is not None:
                 parsed.append((sec, tag))
                 continue
-            parts = self.__lds.findall(sec)
+            parts = split_ado(sec)
             for part in parts:
                 is_multi, multi_words = self.parse(part)
                 for t in multi_words:
@@ -326,24 +352,3 @@ class MyMultiWordDetector:
 
         self.lendict = lendict
         pass
-
-
-def main():
-    # m = MultiWordDetector()
-    # fd = open("/home/cw/Codes/Python/PwdTools/corpora/src/csdn-src.txt")
-    # m.train_file(fd)
-    # pickle.dump(m, open("./multi-csdn-tar.pickle", "wb"))
-    # print(m.parse("password"))
-    nm = pickle.load(open("./multi-csdn-tar.pickle", "rb"))
-    nm.new_lendict()
-    nm.lendict[2]["#1"] = .1
-    # print(nm.lendict.get(4).get("1234"))
-    # print(nm.parse("12342008"))
-    print(nm.parse_sections([("breech", None)]))
-
-    pass
-
-
-if __name__ == '__main__':
-    main()
-    pass

@@ -41,9 +41,20 @@
 # Creating this as a class in case I want to add more advanced features later
 #
 import collections
-import pickle
 import re
 import sys
+
+
+def get_mask(seg):
+    mask = ""
+    for e in seg:
+        if e.isupper():
+            mask += "U"
+        elif e.islower():
+            mask += "L"
+        else:
+            mask += "L"
+    return mask
 
 
 class MyL33tDetector:
@@ -203,16 +214,6 @@ class MyL33tDetector:
     #      }
     #     } 
     #
-    def __get_mask(self, seg):
-        mask = ""
-        for e in seg:
-            if e.isupper():
-                mask += "U"
-            elif e.islower():
-                mask += "L"
-            else:
-                mask += "L"
-        return mask
 
     def extract_l33t(self, pwd):
         """
@@ -289,7 +290,7 @@ class MyL33tDetector:
 
     def parse(self, password):
         if password in self.l33t_map:
-            return [(password, f"A{len(password)}")], [password], [self.__get_mask(password)]
+            return [(password, f"A{len(password)}")], [password], [get_mask(password)]
         if len(password) < self.__min_l33ts or self.__re_lds.search(password) is not None:
             return [(password, None)], [], []
         l33t_list = self.extract_l33t(password)
@@ -305,7 +306,7 @@ class MyL33tDetector:
                 lower_leet = leet.lower()
                 section_list.append((lower_leet, f"A{len(lower_leet)}"))
                 leet_list.append(lower_leet)
-                mask = self.__get_mask(leet)
+                mask = get_mask(leet)
                 mask_list.append(mask)
             else:
                 section_list.append((leet, None))
@@ -327,27 +328,3 @@ class MyL33tDetector:
             parsed_l33t.extend(leet_list)
             parsed_mask.extend(mask_list)
         return parsed_sections, parsed_l33t, parsed_mask
-
-
-def main():
-    # m = MyMultiWordDetector()
-    # m.train_file(open("/home/cw/Documents/Expirements/SegLab/Corpora/csdn-src.txt"))
-    # pickle.dump(m, open("./tmpcsdnmulti.pickle", "wb"))
-    m = pickle.load(open("./tmpcsdnmulti.pickle", "rb"))
-    # nm = pickle.load(open("/home/cw/Codes/Python/SegLab/src/SegFinder/lib_seg/multi-csdn-tar.pickle", "rb"))
-    l33t = MyL33tDetector(m)
-    for repl, bak in l33t.replacements.items():
-        print(f"\t{repl} & {','.join(bak)} & ", end=" \\\\\n")
-    l33t.gen_dict_l33t()
-    # l33t.detect_l33t("p@ssw0rd")
-    cc = l33t.parse_sections([("abP@ssw0rds", None)])
-    print(cc)
-    # sections = l33t.parse_sections(sections)
-    # print(sections)
-    # print(res)
-    pass
-
-
-if __name__ == '__main__':
-    main()
-    pass
