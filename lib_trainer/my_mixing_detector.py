@@ -89,13 +89,11 @@ def conv_pwd(pwd: str, origin_struct: Tuple[Tuple[str, int], ...], to_struct: Tu
     origin_s = "".join([f"{t}" * n for t, n in origin_struct])
     to_s = "".join([f"{t}" * n for t, n in to_struct])
     n_to_s = list(to_s)
-    plen = len(pwd)
     n_pwd = ["" for _ in range(len(pwd))]
     for i, c in enumerate(origin_s):
-        t_i = to_s.find(c)
-        assert 0 <= t_i <= plen
+        t_i = n_to_s.index(c)
         n_to_s[t_i] = ' '
-        n_pwd[t_i] = c
+        n_pwd[t_i] = pwd[i]
     return "".join(n_pwd)
 
 
@@ -120,7 +118,7 @@ class MixingDetector:
         segmented = split_ado_struct(pwd)
         tag_set = set([t for _, t, n, in segmented])
         if len(segmented) <= len(tag_set):
-            return .0, None, None, None
+            return .0, None, None, None, None
         origin_struct = tuple([(t, n) for _, t, n, in segmented])
         str_struct = "".join([f"{t}{n}" for _, t, n, in segmented])
         group, n_struct = group4struct(str_struct)
@@ -170,7 +168,7 @@ class MixingDetector:
             except ValueError as e:
                 print(e)
                 sys.exit(-1)
-            if prob > sys.float_info.min:
+            if prob >= sys.float_info.min:
                 res_list.append((prob, possible_s, n_pwd_parts))
             pass
         pwd_parts = [p for p, _, _ in segmented]
