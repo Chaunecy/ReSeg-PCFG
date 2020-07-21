@@ -15,7 +15,7 @@ import os
 import re
 from collections import defaultdict
 from itertools import product
-from typing import Tuple, List, Dict, Set
+from typing import Tuple, List, Dict, Set, Counter
 
 import sys
 
@@ -110,8 +110,31 @@ class MixingDetector:
                 struct_group[tuple(group)].add(n_struct)
         self.struct_group = struct_group  # type: Dict[Tuple[Tuple[str, int],...], Set[Tuple[Tuple[str, int],...]]]
         self.pwds_may_restore = pcfg_parser.pwds_may_restore
-        self.pcfg_parser = pcfg_parser
 
+        def i2f(counter: Counter):
+            s = sum(counter.values())
+            n_counter = {}
+            for k in counter:
+                n_counter[k] = counter[k] / s
+            return n_counter
+
+        def li2f(len_counter: Dict[int, Counter]):
+            n_len_counter = {}
+            for _l, counter in len_counter.items():
+                n_counter = {}
+                s = sum(counter.values())
+                for k, v in counter.items():
+                    n_counter[k] = v / s
+                n_len_counter[_l] = n_counter
+            return n_len_counter
+
+        self.count_base_structures = i2f(pcfg_parser.count_base_structures)
+        self.count_alpha = li2f(pcfg_parser.count_alpha)
+        self.count_alpha_masks = li2f(pcfg_parser.count_alpha_masks)
+        self.count_other = li2f(pcfg_parser.count_other)
+        self.count_digits = li2f(pcfg_parser.count_digits)
+        self.count_years = i2f(pcfg_parser.count_years)
+        self.count_context_sensitive = i2f(pcfg_parser.count_context_sensitive)
         pass
 
     def calc_prob(self, pwd: str):
@@ -130,7 +153,7 @@ class MixingDetector:
             s = "".join([f"{t}{n}" for t, n in possible_s])
             n_pwd = conv_pwd(pwd, origin_struct=origin_struct, to_struct=possible_s)
             n_pwd_parts = []
-            prob *= self.pcfg_parser.count_base_structures.get(s, 0.0)
+            prob *= self.count_base_structures.get(s, 0.0)
             try:
                 i = 0
                 for tag, span in possible_s:
@@ -140,7 +163,7 @@ class MixingDetector:
                     if prob <= sys.float_info.min:
                         break
                     if tag == 'A':
-                        prob *= self.pcfg_parser.count_alpha.get(len(pwd_part), {}).get(pwd_part.lower(), 0.0)
+                        prob *= self.count_alpha.get(len(pwd_part), {}).get(pwd_part.lower(), 0.0)
                         if prob <= sys.float_info.min:
                             break
                         alpha_mask = ''
@@ -149,17 +172,17 @@ class MixingDetector:
                                 alpha_mask += 'U'
                             else:
                                 alpha_mask += "L"
-                        prob *= self.pcfg_parser.count_alpha_masks.get(len(alpha_mask), {}).get(alpha_mask, 0.0)
+                        prob *= self.count_alpha_masks.get(len(alpha_mask), {}).get(alpha_mask, 0.0)
                     elif tag == 'O':
-                        prob *= self.pcfg_parser.count_other.get(len(pwd_part), {}).get(pwd_part, 0.0)
+                        prob *= self.count_other.get(len(pwd_part), {}).get(pwd_part, 0.0)
                     elif tag == 'D':
-                        prob *= self.pcfg_parser.count_digits.get(len(pwd_part), {}).get(pwd_part, 0.0)
-                    elif tag == 'K':
-                        prob *= self.pcfg_parser.count_keyboard.get(len(pwd_part), {}).get(pwd_part, 0.0)
+                        prob *= self.count_digits.get(len(pwd_part), {}).get(pwd_part, 0.0)
+                    # elif tag == 'K':
+                    #     prob *= self.pcfg_parser.count_keyboard.get(len(pwd_part), {}).get(pwd_part, 0.0)
                     elif tag == 'X':
-                        prob *= self.pcfg_parser.count_context_sensitive.get(pwd_part, 0.0)
+                        prob *= self.count_context_sensitive.get(pwd_part, 0.0)
                     elif tag == 'Y':
-                        prob *= self.pcfg_parser.count_years.get(pwd_part, 0.0)
+                        prob *= self.count_years.get(pwd_part, 0.0)
                     else:
                         print(f"unknown tag: {tag} in {span} for {pwd_part}")
                         sys.exit(-1)
@@ -222,7 +245,7 @@ class MixingDetector:
         # save2 = sys.stdout
         for origin, reduces_pwd_list in to_save.items():
             for reduce in reduces_pwd_list:
-                save2.write(f"{origin}\t{reduce}\n")
+                save2.write(f"{reduce}\t{origin}\n")
         save2.flush()
         save2.close()
         #     reduces_pwd_list = list(reduces_pwd_list)
