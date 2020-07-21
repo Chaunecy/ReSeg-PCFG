@@ -138,6 +138,12 @@ class MixingDetector:
         pass
 
     def calc_prob(self, pwd: str):
+        """
+        convert a password from one structure to another,
+        and find one with largest probability
+        :param pwd:
+        :return: prob, converted_struct, origin_struct, converted_segments, origin_segments
+        """
         segmented = split_ado_struct(pwd)
         tag_set = set([t for _, t, n, in segmented])
         if len(segmented) <= len(tag_set):
@@ -199,6 +205,11 @@ class MixingDetector:
         return prob, to_struct, origin_struct, n_pwd_parts, pwd_parts
 
     def parse(self, save_dir: str):
+        """
+        parse mixing, and save them
+        :param save_dir:
+        :return:
+        """
         pwds = self.pwds_may_restore
         struct_map = defaultdict(lambda: defaultdict(list))
         for pwd, num in pwds.items():
@@ -206,6 +217,7 @@ class MixingDetector:
             if origin_struct is None:
                 continue
             struct_map[origin_struct][to_struct].append((origin_pwd_parts, converted_parts, num))
+
         folder = os.path.join(save_dir, "Mixing")
         try:
             if not os.path.exists(folder):
@@ -217,6 +229,7 @@ class MixingDetector:
         except Exception as msg:
             print(msg)
             sys.exit(-1)
+
         save2 = open(os.path.join(folder, 'all.txt'), "w")
         to_save = defaultdict(lambda: set())
         for struct, to_structs in struct_map.items():
@@ -232,6 +245,7 @@ class MixingDetector:
                         idx += 1
                 targets = [list(p) for _, p in sorted(data.items())]
                 all_patterns = functools.reduce(lambda x, y: x * y, [len(p) for p in targets])
+                # a hack, avoid exp growth
                 if all_patterns > 256:
                     continue
                 generalized = set(product(*targets))
