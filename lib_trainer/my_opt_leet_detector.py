@@ -1,7 +1,11 @@
 import functools
 import re
+import sys
+import traceback
 
 import itertools
+
+from lib_trainer.trainer_file_input import TrainerFileInput
 
 
 def get_mask(seg):
@@ -212,6 +216,7 @@ class EngL33tDetector:
             return False, ""
         unleeted_list = self.unleet(word)
         for unleeted in unleeted_list:
+            unleeted = "".join(unleeted)
             count = self.multi_word_detector.get_count(unleeted)
             if count >= self.multi_word_detector.threshold:
                 return True, unleeted
@@ -228,6 +233,30 @@ class EngL33tDetector:
                 self.l33t_map[lower_pwd] = 0
             self.l33t_map[lower_pwd] += 1
             pass
+        pass
+
+    def init_l33t(self, training_set, encoding):
+        file_input = TrainerFileInput(training_set, encoding)
+        num_parsed_so_far = 0
+        try:
+            password = file_input.read_password()
+            while password:
+                # Print status indicator if needed
+                num_parsed_so_far += 1
+                if num_parsed_so_far % 1000000 == 0:
+                    print(str(num_parsed_so_far // 1000000) + ' Million')
+                # pcfg_parser.parse(password)
+                self.detect_l33t(password)
+                # Get the next password
+                password = file_input.read_password()
+
+        except Exception as msg:
+            traceback.print_exc(file=sys.stdout)
+            print("Exception: " + str(msg))
+            print("Exiting...")
+            return
+        print(f"init l33t done", file=sys.stderr)
+        self.gen_l33t_dtree()
         pass
 
     def gen_l33t_dtree(self):

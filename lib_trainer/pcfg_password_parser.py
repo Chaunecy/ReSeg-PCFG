@@ -17,7 +17,7 @@ import sys
 from .base_structure import base_structure_creation
 # Local imports
 from .my_context_detection import detect_context_sections
-from .my_leet_detector import MyL33tDetector
+from .my_opt_leet_detector import EngL33tDetector
 from .prince_metrics import prince_evaluation
 from .trainer_file_input import TrainerFileInput
 from .year_detection import year_detection
@@ -53,7 +53,7 @@ class PCFGPasswordParser:
         self.multiword_detector = multiword_detector
 
         # Initialize Leet Speak Detector
-        self.leet_detector = MyL33tDetector(self.multiword_detector)
+        self.leet_detector = EngL33tDetector(self.multiword_detector)
 
         # Used for debugging/statistics
         #
@@ -91,29 +91,6 @@ class PCFGPasswordParser:
         else:
             self.save2 = None
 
-    def init_l33t(self, training_set, encoding):
-        file_input = TrainerFileInput(training_set, encoding)
-        num_parsed_so_far = 0
-        try:
-            password = file_input.read_password()
-            while password:
-
-                # Print status indicator if needed
-                num_parsed_so_far += 1
-                if num_parsed_so_far % 1000000 == 0:
-                    print(str(num_parsed_so_far // 1000000) + ' Million')
-                # pcfg_parser.parse(password)
-                self.leet_detector.detect_l33t(password)
-                # Get the next password
-                password = file_input.read_password()
-
-        except Exception as msg:
-            traceback.print_exc(file=sys.stdout)
-            print("Exception: " + str(msg))
-            print("Exiting...")
-            return
-        print(f"init l33t done", file=sys.stderr)
-        pass
 
     # Main function called to parse an individual password
     #
