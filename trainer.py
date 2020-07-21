@@ -45,6 +45,7 @@ from collections import Counter
 # Local imports
 from lib_trainer.banner_info import print_banner
 from lib_trainer.config_file import save_config_file
+from lib_trainer.my_mixing_detector import MixingDetector
 from lib_trainer.my_multiword_detector import MyMultiWordDetector
 from lib_trainer.omen.alphabet_generator import AlphabetGenerator
 from lib_trainer.omen.alphabet_lookup import AlphabetLookup
@@ -548,7 +549,8 @@ def main():
         print("The training did not compleate correctly")
         print("Exiting...")
         return
-
+    mixing_detector = MixingDetector(pcfg_parser=pcfg_parser)
+    mixing_detector.parse(save_dir=base_directory)
     # Save the pcfg data to disk
     if not save_pcfg_data(
             base_directory,

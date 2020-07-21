@@ -8,18 +8,34 @@
 # process one password at at time that is sent to it
 #
 #############################################################################
-import sys
+import re
 import traceback
-from collections import Counter
+from collections import Counter, defaultdict
+
+import sys
 
 from .base_structure import base_structure_creation
 # Local imports
-from .keyboard_walk import detect_keyboard_walk
 from .my_context_detection import detect_context_sections
 from .my_leet_detector import MyL33tDetector
 from .prince_metrics import prince_evaluation
 from .trainer_file_input import TrainerFileInput
 from .year_detection import year_detection
+
+re_tag = re.compile(r"([ADOKYX]\d+)")
+
+
+def restore_upper(pwd, section_list):
+    n_section_list = []
+    start_pos = 0
+    for sec, tag in section_list:
+        t = tag[0]
+        n = int(tag[1:])
+        p = pwd[start_pos:start_pos + n]
+        n_section_list.append((p, t, n))
+        start_pos += n
+    return tuple(n_section_list)
+    pass
 
 
 # Responsible for parsing passwords to train a PCFG grammar
@@ -69,6 +85,7 @@ class PCFGPasswordParser:
         self.count_base_structures = Counter()
         self.count_raw_base_structures = Counter()
         self.count_prince = Counter()
+        self.pwds_may_restore = defaultdict(int)
         if save_structs is not None and save_structs.writable():
             self.save2 = save_structs
         else:
@@ -105,12 +122,13 @@ class PCFGPasswordParser:
     #    False: If there was a problem parsing the password
     #
     def parse(self, password):
-
+        need_restore = True
         # Since keyboard combos can look like many other parsings, filter them
         # out first
-        section_list, found_walks = detect_keyboard_walk(password)
+        section_list = [(password, None)]
+        # section_list, found_walks = detect_keyboard_walk(password)
 
-        self._update_counter_len_indexed(self.count_keyboard, found_walks)
+        # self._update_counter_len_indexed(self.count_keyboard, found_walks)
 
         # Identify e-mail and web sites before doing other string parsing
         # this is because they can have digits + special characters
@@ -145,11 +163,14 @@ class PCFGPasswordParser:
 
         # found_context_sensitive_strings = context_sensitive_detection(section_list)
         section_list, found_contexts = detect_context_sections(section_list)
-
+        if len(found_contexts) > 0:
+            need_restore = False
         for cs_string in found_contexts:
             self.count_context_sensitive[cs_string] += 1
 
         section_list, leet_list, mask_list = self.leet_detector.parse_sections(section_list)
+        if len(leet_list) > 0:
+            need_restore = False
         for leet in leet_list:
             self.leet_detector.l33t_map[leet] += 1
         self._update_counter_len_indexed(self.count_alpha, leet_list)
@@ -181,7 +202,9 @@ class PCFGPasswordParser:
         # creation
 
         prince_evaluation(self.count_prince, section_list)
-
+        if need_restore and ((not password.isdigit()) and (not password.isalpha())
+                             and any([c.isdigit() or c.isalpha() for c in password])):
+            self.pwds_may_restore[password] += 1
         # Now after all the other parsing is done, create the base structures
         if self.save2 is not None:
             write2 = [f"{password}"]
