@@ -200,6 +200,8 @@ class MixingDetector:
             if prob >= sys.float_info.min:
                 res_list.append((prob, possible_s, n_pwd_parts))
             pass
+        if len(res_list) == 0:
+            return .0, None, None, None, None
         pwd_parts = [p for p, _, _ in segmented]
         prob, to_struct, n_pwd_parts = max(res_list, key=lambda x: x[0])
         return prob, to_struct, origin_struct, n_pwd_parts, pwd_parts
