@@ -157,7 +157,7 @@ class MixingDetector:
         res_list = []
         for possible_s in possible_structs:
             # reduce the number of segments, instead of adding
-            if len(possible_s) > len(origin_struct):
+            if len(possible_s) >= len(origin_struct):
                 continue
             prob = 1.0
             s = "".join([f"{t}{n}" for t, n in possible_s])
