@@ -6,6 +6,7 @@ import traceback
 
 import itertools
 
+from .speedup import load_l33t_ign, load_l33t_found
 from .trainer_file_input import TrainerFileInput
 
 
@@ -56,8 +57,8 @@ re_invalid = re.compile(
     r"|[a-z]{3,}[0-9$]+"
     r"|(000)?we?bh(o?st)?)$")
 
-# todo: may generate a file saving false positives
-ignore_set = {"hello000", "zxcvbnm1", "mnbvcxz2", "junjun88"}
+ignore_set = load_l33t_ign()
+valid_set = load_l33t_found()
 
 
 def limit_alpha(word: str):
@@ -92,7 +93,7 @@ def invalid(word: str):
     if lower[:-1].isalpha() and lower[-1:] == '!':
         return True
     # xxx4ever
-    if wlen > 5 and lower[-5:] == '4ever' and lower[:-5].isalpha():
+    if 9 > wlen > 5 and lower[-5:] == '4ever' and (lower[:-5].isalpha() or lower[:-5].isdigit()):
         return True
     return re_invalid.search(lower)
 
@@ -251,9 +252,13 @@ class AsciiL33tDetector:
         return False, ""
 
     def detect_l33t(self, pwd: str):
+        lower_pwd = pwd.lower()
+        if lower_pwd in valid_set:
+            if lower_pwd not in self.l33t_map:
+                self.l33t_map[lower_pwd] = 0
+            self.l33t_map[lower_pwd] += 1
         if invalid(pwd):
             return
-        lower_pwd = pwd.lower()
         is_l33t, leet = self.find_l33t(lower_pwd)
         if is_l33t:
             if lower_pwd not in self.l33t_map:

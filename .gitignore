@@ -15,5 +15,4 @@ venv
 # Don't commit save files
 *.sav
 *.omn
-**/l33t.found
 **/mixing.found
