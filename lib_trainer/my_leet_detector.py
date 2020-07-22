@@ -6,7 +6,7 @@ import traceback
 
 import itertools
 
-from lib_trainer.trainer_file_input import TrainerFileInput
+from .trainer_file_input import TrainerFileInput
 
 
 def get_mask(seg):
@@ -56,6 +56,9 @@ re_invalid = re.compile(
     r"|[a-z]{3,}[0-9$]+"
     r"|(000)?we?bh(o?st)?)$")
 
+# todo: may generate a file saving false positives
+ignore_set = {"hello000", "zxcvbnm1", "mnbvcxz2", "junjun88"}
+
 
 def limit_alpha(word: str):
     """
@@ -69,20 +72,23 @@ def limit_alpha(word: str):
 
 
 def invalid(word: str):
+    lower = word.lower()
+    if lower in ignore_set:
+        return True
     # pure alphas, pure digits, or pure others
     if limit_alpha(word):
         return True
-    counter = collections.Counter(word.lower())
+    counter = collections.Counter(lower)
     # 5i5i5i5i, o00oo0o
     if len(counter) < 3 or max(counter.values()) >= len(word) / 2:
         return True
     # li1li1li1, o0po0po0p
     if len(counter) == 3 and len(word) >= 6 and max(counter.values()) >= len(word) / 3:
         return True
-    return re_invalid.search(word)
+    return re_invalid.search(lower)
 
 
-class EngL33tDetector:
+class AsciiL33tDetector:
 
     def __init__(self, multi_word_detector):
         self.multi_word_detector = multi_word_detector
@@ -183,8 +189,6 @@ class EngL33tDetector:
             tmp_d["\x02"] = convs
         self.repl_dict_tree = repl_dict_tree
         self.max_len_repl = len(max(self.replacements, key=lambda x: len(x)))
-        # todo: may generate a file saving false positives
-        self.ignore_set = {"hello000", "zxcvbnm1", "mnbvcxz2", "junjun88"}
         # to speedup query
         self.l33t_map = {}
         # dict tree, to speedup detection
@@ -238,7 +242,7 @@ class EngL33tDetector:
         return False, ""
 
     def detect_l33t(self, pwd: str):
-        if pwd in self.ignore_set or invalid(pwd):
+        if invalid(pwd):
             return
         lower_pwd = pwd.lower()
         is_l33t, leet = self.find_l33t(lower_pwd)
@@ -420,7 +424,7 @@ def main():
     # tt = ml33t.unleet("llove|_|")
     # for pp in tt:
     #     print(pp)
-    print(invalid("1lovea"))
+    print(invalid("zxcvbnm1"))
 
 
 if __name__ == '__main__':

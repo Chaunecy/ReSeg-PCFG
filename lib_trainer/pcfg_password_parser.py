@@ -9,7 +9,6 @@
 #
 #############################################################################
 import re
-import traceback
 from collections import Counter, defaultdict
 
 import sys
@@ -17,9 +16,8 @@ import sys
 from .base_structure import base_structure_creation
 # Local imports
 from .my_context_detection import detect_context_sections
-from .my_opt_leet_detector import EngL33tDetector
+from .my_leet_detector import AsciiL33tDetector
 from .prince_metrics import prince_evaluation
-from .trainer_file_input import TrainerFileInput
 from .year_detection import year_detection
 
 re_tag = re.compile(r"([ADOKYX]\d+)")
@@ -38,6 +36,34 @@ def restore_upper(pwd, section_list):
     pass
 
 
+# Updates a Python Counter object when the item is lenght indexed
+#
+# For example, if the individual counts are broken up by length of input
+# Aka A1 = 'a', A3 = 'cat', A5 = 'chair'
+#
+# Input Values:
+#
+# self: Since this is a class private function
+#
+# input_counter: The Python Counter object to update
+#
+# input_list: A list of items to update in the counter
+#
+def update_counter_len_indexed(input_counter, input_list):
+    # Go through every item in the list to insert it in the counter
+    for item in input_list:
+        # First try a blind insertion into the list
+        # noinspection PyBroadException
+        try:
+            input_counter[len(item)][item] += 1
+
+        # If that length index doesn't exist, it'll throw an exception some
+        # now create it
+        except Exception:
+            input_counter[len(item)] = Counter()
+            input_counter[len(item)][item] += 1
+
+
 # Responsible for parsing passwords to train a PCFG grammar
 #
 class PCFGPasswordParser:
@@ -53,7 +79,7 @@ class PCFGPasswordParser:
         self.multiword_detector = multiword_detector
 
         # Initialize Leet Speak Detector
-        self.leet_detector = EngL33tDetector(self.multiword_detector)
+        self.leet_detector = AsciiL33tDetector(self.multiword_detector)
 
         # Used for debugging/statistics
         #
@@ -90,7 +116,6 @@ class PCFGPasswordParser:
             self.save2 = save_structs
         else:
             self.save2 = None
-
 
     # Main function called to parse an individual password
     #
@@ -150,18 +175,18 @@ class PCFGPasswordParser:
             need_restore = False
         for leet in leet_list:
             self.leet_detector.l33t_map[leet] += 1
-        self._update_counter_len_indexed(self.count_alpha, leet_list)
-        self._update_counter_len_indexed(self.count_alpha_masks, mask_list)
+        update_counter_len_indexed(self.count_alpha, leet_list)
+        update_counter_len_indexed(self.count_alpha_masks, mask_list)
         # Identify pure alpha strings in the dataset
 
         section_list, alpha_list, mask_list, digits_list, specials_list \
             = self.multiword_detector.parse_sections(section_list)
         # found_alpha_strings, found_mask_list = alpha_detection(section_list, self.multiword_detector)
         #
-        self._update_counter_len_indexed(self.count_alpha, alpha_list)
-        self._update_counter_len_indexed(self.count_alpha_masks, mask_list)
-        self._update_counter_len_indexed(self.count_digits, digits_list)
-        self._update_counter_len_indexed(self.count_other, specials_list)
+        update_counter_len_indexed(self.count_alpha, alpha_list)
+        update_counter_len_indexed(self.count_alpha_masks, mask_list)
+        update_counter_len_indexed(self.count_digits, digits_list)
+        update_counter_len_indexed(self.count_other, specials_list)
 
         # Identify pure digit strings in the dataset
 
@@ -203,30 +228,3 @@ class PCFGPasswordParser:
         self.count_raw_base_structures[base_structure] += 1
 
         return True
-
-    # Updates a Python Counter object when the item is lenght indexed
-    #
-    # For example, if the individual counts are broken up by length of input
-    # Aka A1 = 'a', A3 = 'cat', A5 = 'chair'
-    #
-    # Input Values:
-    #
-    # self: Since this is a class private function
-    #
-    # input_counter: The Python Counter object to update
-    #
-    # input_list: A list of items to update in the counter
-    #
-    def _update_counter_len_indexed(self, input_counter, input_list):
-
-        # Go through every item in the list to insert it in the counter
-        for item in input_list:
-            # First try a blind insertion into the list
-            try:
-                input_counter[len(item)][item] += 1
-
-            # If that length index doesn't exist, it'll throw an exception some
-            # now create it
-            except:
-                input_counter[len(item)] = Counter()
-                input_counter[len(item)][item] += 1
