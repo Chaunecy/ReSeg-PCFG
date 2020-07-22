@@ -73,10 +73,13 @@ def limit_alpha(word: str):
 
 def invalid(word: str):
     lower = word.lower()
+    wlen = len(word)
     if lower in ignore_set:
         return True
     # pure alphas, pure digits, or pure others
     if limit_alpha(word):
+        return True
+    if word.startswith("#1") or word.endswith("#1"):
         return True
     counter = collections.Counter(lower)
     # 5i5i5i5i, o00oo0o
@@ -84,6 +87,12 @@ def invalid(word: str):
         return True
     # li1li1li1, o0po0po0p
     if len(counter) == 3 and len(word) >= 6 and max(counter.values()) >= len(word) / 3:
+        return True
+    # xxx!
+    if lower[:-1].isalpha() and lower[-1:] == '!':
+        return True
+    # xxx4ever
+    if wlen > 5 and lower[-5:] == '4ever' and lower[:-5].isalpha():
         return True
     return re_invalid.search(lower)
 

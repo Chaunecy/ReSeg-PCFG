@@ -135,6 +135,7 @@ class MixingDetector:
         self.count_digits = li2f(pcfg_parser.count_digits)
         self.count_years = i2f(pcfg_parser.count_years)
         self.count_context_sensitive = i2f(pcfg_parser.count_context_sensitive)
+        self.found_mixing = defaultdict(set)
         pass
 
     def calc_prob(self, pwd: str):
@@ -155,6 +156,9 @@ class MixingDetector:
         possible_structs.add(origin_struct)
         res_list = []
         for possible_s in possible_structs:
+            # reduce the number of segments, instead of adding
+            if len(possible_s) > len(origin_struct):
+                continue
             prob = 1.0
             s = "".join([f"{t}{n}" for t, n in possible_s])
             n_pwd = conv_pwd(pwd, origin_struct=origin_struct, to_struct=possible_s)
@@ -233,14 +237,18 @@ class MixingDetector:
             sys.exit(-1)
 
         save2 = open(os.path.join(folder, 'all.txt'), "w")
-        to_save = defaultdict(lambda: set())
+
+        def get_set():
+            return set()
+
+        to_save = defaultdict(get_set)
         for struct, to_structs in struct_map.items():
             for reduce_to_struct, transforms in to_structs.items():
                 data = defaultdict(set)
                 for origin_pwd_parts, converted_parts, appearance in transforms:
 
-                    to_save["".join([part for part in origin_pwd_parts])].add(
-                        "".join([part for part in converted_parts]))
+                    to_save["".join(origin_pwd_parts)].add(
+                        "".join(converted_parts))
                     idx = 0
                     for part in converted_parts:
                         data[idx].add(part)
