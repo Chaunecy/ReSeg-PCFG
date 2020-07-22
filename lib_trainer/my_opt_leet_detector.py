@@ -1,3 +1,4 @@
+import collections
 import functools
 import re
 import sys
@@ -43,10 +44,6 @@ def get_ado(word: str):
     return parts
 
 
-all_digits_set = set("0123456789")
-all_symbol_set = set("~`!@#$%^&*()_+-={}|[]\\;':\",./<>?")
-all_letter_set = set("abcdefghijklmnopqrstuvwxyz")
-
 re_invalid = re.compile(
     r"^("
     r"[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}[a-z]{1,3}"  # except (S or D) + L
@@ -60,13 +57,27 @@ re_invalid = re.compile(
     r"|(000)?we?bh(o?st)?)$")
 
 
-def pure(word: str):
-    return word.isalpha() or word.isdigit() or all([not c.isdigit() and not c.isalpha() for c in word])
+def limit_alpha(word: str):
+    """
+    word is not composed of pure alphas
+    word should have at last one alpha
+    word.isdigit() is a speedup for pure digits
+    :param word:
+    :return:
+    """
+    return word.isalpha() or word.isdigit() or all([not c.isalpha() for c in word])
 
 
 def invalid(word: str):
     # pure alphas, pure digits, or pure others
-    if pure(word):
+    if limit_alpha(word):
+        return True
+    counter = collections.Counter(word.lower())
+    # 5i5i5i5i, o00oo0o
+    if len(counter) < 3 or max(counter.values()) >= len(word) / 2:
+        return True
+    # li1li1li1, o0po0po0p
+    if len(counter) == 3 and len(word) >= 6 and max(counter.values()) >= len(word) / 3:
         return True
     return re_invalid.search(word)
 
@@ -172,14 +183,17 @@ class EngL33tDetector:
             tmp_d["\x02"] = convs
         self.repl_dict_tree = repl_dict_tree
         self.max_len_repl = len(max(self.replacements, key=lambda x: len(x)))
-        self.ignore_set = set()
+        # todo: may generate a file saving false positives
+        self.ignore_set = {"hello000", "zxcvbnm1", "mnbvcxz2", "junjun88"}
+        # to speedup query
         self.l33t_map = {}
+        # dict tree, to speedup detection
         self.dict_l33ts = {}
+        # max len of l33t
         self.__min_l33ts = 4
+        # min len of l33t
         self.__max_l33ts = 8
         # lower string
-
-        self.__re_end_at = re.compile(r"^([a-z]+)@+$")
 
     def unleet(self, word: str) -> itertools.product:
         unleeted = []
@@ -362,7 +376,7 @@ class EngL33tDetector:
     def parse(self, password):
         if password in self.l33t_map:
             return [(password, f"A{len(password)}")], [password], [get_mask(password)]
-        if len(password) < self.__min_l33ts or pure(password) is not None:
+        if len(password) < self.__min_l33ts or limit_alpha(password) is not None:
             return [(password, None)], [], []
         l33t_list = self.extract_l33t(password)
         if len(l33t_list) == 0:
@@ -391,7 +405,7 @@ class EngL33tDetector:
             if tag is not None:
                 parsed_sections.append((section, tag))
                 continue
-            if len(section) < self.__min_l33ts or pure(section):
+            if len(section) < self.__min_l33ts or limit_alpha(section):
                 parsed_sections.append((section, None))
                 continue
             section_list, leet_list, mask_list = self.parse(section)
