@@ -11,6 +11,12 @@ from .trainer_file_input import TrainerFileInput
 
 
 def get_mask(seg):
+    """
+    get corresponding upper/lower tag of given seg
+    Hello -> ULLLL
+    :param seg:
+    :return:
+    """
     mask = ""
     for e in seg:
         if e.isupper():
@@ -23,6 +29,12 @@ def get_mask(seg):
 
 
 def get_ado(word: str):
+    """
+    split word according to A, D, O tag
+    hello123world -> [(hello, A, 5), (123, D, 3), (world, A, 5)]
+    :param word:
+    :return:
+    """
     prev_chr_type = None
     acc = ""
     parts = []
@@ -45,6 +57,7 @@ def get_ado(word: str):
     return parts
 
 
+# this is a hack
 re_invalid = re.compile(
     r"^("
     r"[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}[a-z]{1,3}"  # except (S or D) + L
@@ -57,7 +70,10 @@ re_invalid = re.compile(
     r"|[a-z]{3,}[0-9$]+"
     r"|(000)?we?bh(o?st)?)$")
 
+# ignore words in this set
 ignore_set = load_l33t_ign()
+# words in this set will be treated as l33t and will not detect again.
+# to speedup
 valid_set = load_l33t_found()
 
 
@@ -73,9 +89,18 @@ def limit_alpha(word: str):
 
 
 def invalid(word: str):
+    """
+    whether this word can be treated as l33t
+    There are many trade-offs, to reject false positives
+    :param word:
+    :return:
+    """
     lower = word.lower()
     wlen = len(word)
     if lower in ignore_set:
+        return True
+    # length ~ [4, 20]
+    if len(word) < 4 or len(word) > 20:
         return True
     # pure alphas, pure digits, or pure others
     if limit_alpha(word):
@@ -101,6 +126,10 @@ def invalid(word: str):
 class AsciiL33tDetector:
 
     def __init__(self, multi_word_detector):
+        """
+        multi_word detector should be instance of my_multiword_detector.py
+        :param multi_word_detector: instance of my_multiword_detector.py
+        """
         self.multi_word_detector = multi_word_detector
 
         self.replacements = {
@@ -189,6 +218,7 @@ class AsciiL33tDetector:
             '4': ['a', 'for', 'fore'],
             '$': ['s']
         }
+        # to speedup match, not necessary
         repl_dict_tree = {}
         for repl, convs in self.replacements.items():
             tmp_d = repl_dict_tree
@@ -210,6 +240,13 @@ class AsciiL33tDetector:
         # lower string
 
     def unleet(self, word: str) -> itertools.product:
+        """
+        1 may be converted to l and i, therefore at least one unleet word will be found
+        this func will find all possible transformations.
+        However, here is a hack to reject word with 256+ transformations
+        :param word: l33t word
+        :return: unleeted list
+        """
         unleeted = []
         repl_dtree = self.repl_dict_tree
         i = 0
@@ -234,14 +271,21 @@ class AsciiL33tDetector:
             i += add_on
             unleeted.append(repl_list)
         all_num = functools.reduce(lambda x, y: x * y, [len(p) for p in unleeted])
+        # a hack, to early reject
         if all_num >= 256:
             return []
         all_possibles = itertools.product(*unleeted)
         return all_possibles
 
     def find_l33t(self, word: str) -> (bool, str):
-        if len(word) < 4 or len(word) > 20:
-            return False, ""
+        """
+        whether a word is l33t or not
+        return true if found.
+        if you want, you can find all possible unleeted words
+        :param word:
+        :return: is l33t or not, unleeted word
+        """
+
         unleeted_list = self.unleet(word)
         for unleeted in unleeted_list:
             unleeted = "".join(unleeted)
@@ -252,6 +296,14 @@ class AsciiL33tDetector:
         return False, ""
 
     def detect_l33t(self, pwd: str):
+        """
+        whether a given password is l33t.
+        this is a hack, because I detect whether whole password is a l33t.
+        Best way is to detect whether a password contains l33t part.
+        this may be optimized later.
+        :param pwd:
+        :return:
+        """
         lower_pwd = pwd.lower()
         if lower_pwd in valid_set:
             if lower_pwd not in self.l33t_map:
@@ -268,6 +320,14 @@ class AsciiL33tDetector:
         pass
 
     def init_l33t(self, training_set, encoding):
+        """
+        find l33ts from a training set
+        :param training_set:
+        :param encoding:
+        :return:
+        """
+        if encoding.lower() != 'ascii':
+            raise Exception("l33t detector can be used in ASCII-encoded passwords")
         file_input = TrainerFileInput(training_set, encoding)
         num_parsed_so_far = 0
         try:
@@ -292,17 +352,25 @@ class AsciiL33tDetector:
         pass
 
     def gen_l33t_dtree(self):
+        """
+        generate a dict tree, to speedup detection of part of l33t in a password
+        :return:
+        """
         l33ts = sorted(self.l33t_map.keys(), key=lambda x: len(x), reverse=True)
         if len(l33ts) == 0:
             return
         self.__min_l33ts = len(l33ts[-1])
         self.__max_l33ts = len(l33ts[0])
         for l33t in l33ts:
+            # early return, a hack
             if len(l33t) < 2 * self.__min_l33ts:
                 break
             for i in range(self.__min_l33ts, len(l33t) - self.__min_l33ts + 1):
                 left = l33t[:i]
                 right = l33t[i:]
+                """
+                some l33t may be composed of several short l33ts, remove them
+                """
                 if left in self.l33t_map and self.multi_word_detector.get_count(right) >= 5:
                     del self.l33t_map[l33t]
                     break
@@ -320,7 +388,7 @@ class AsciiL33tDetector:
 
     def extract_l33t(self, pwd):
         """
-        find the longest match of l33t
+        find the longest match of l33t, using DFS
         :param pwd:  password to be identified
         :return: list of [segment, start_idx, is_l33t]
         """
@@ -392,10 +460,14 @@ class AsciiL33tDetector:
         pass
 
     def parse(self, password):
+        """
+        parsing a password, may be a section of password
+        :param password:
+        :return: section tag, l33ts, masks
+        """
         if password in self.l33t_map:
             return [(password, f"A{len(password)}")], [password], [get_mask(password)]
-        if len(password) < self.__min_l33ts or limit_alpha(password) is not None:
-            return [(password, None)], [], []
+
         l33t_list = self.extract_l33t(password)
         if len(l33t_list) == 0:
             return [(password, None)], [], []
@@ -416,6 +488,11 @@ class AsciiL33tDetector:
         return section_list, leet_list, mask_list
 
     def parse_sections(self, sections):
+        """
+        given a sections list, find and tag possible l33ts, and return a new sections list
+        :param sections:
+        :return:
+        """
         parsed_sections = []
         parsed_l33t = []
         parsed_mask = []

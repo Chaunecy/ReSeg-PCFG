@@ -4,7 +4,6 @@ from typing import Dict, Set
 
 path_found_l33t = os.path.join(os.path.dirname(__file__), "l33t.found")
 path_ignore_l33t = os.path.join(os.path.dirname(__file__), "l33t.ignore")
-path_found_mixing = os.path.join(os.path.dirname(__file__), "mixing.found")
 
 
 def load_l33t_found() -> Set[str]:
@@ -46,21 +45,3 @@ def save_l33t_found(l33ts: Dict[str, int]) -> None:
     l33ts = set(l33ts.keys())
     pickle.dump(l33ts, fd)
 
-
-def load_mixing() -> Dict[str, set]:
-    """
-
-    :return:
-    """
-    if not os.path.exists(path_found_mixing):
-        return {}
-    fd = open(path_found_mixing, "rb")
-    mixing_dict = pickle.load(fd)  # type: Dict[str, set]
-    fd.close()
-    return mixing_dict
-
-
-def save_mixing(mixing_dict: Dict) -> None:
-    fd = open(path_found_mixing, "wb")
-    pickle.dump(mixing_dict, fd)
-    fd.close()
