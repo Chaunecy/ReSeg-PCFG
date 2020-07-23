@@ -508,15 +508,3 @@ class AsciiL33tDetector:
             parsed_l33t.extend(leet_list)
             parsed_mask.extend(mask_list)
         return parsed_sections, parsed_l33t, parsed_mask
-
-
-def main():
-    # ml33t = EngL33tDetector(None)
-    # tt = ml33t.unleet("llove|_|")
-    # for pp in tt:
-    #     print(pp)
-    print(invalid("zxcvbnm1"))
-
-
-if __name__ == '__main__':
-    main()
