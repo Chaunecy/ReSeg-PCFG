@@ -31,7 +31,7 @@ def load_l33t_ign() -> Set[str]:
     fd = open(path_ignore_l33t, "r")
     ign = set()
     for line in fd:
-        ign.add(line.strip("\t\n"))
+        ign.add(line.strip("\r\n"))
     return ign
 
 

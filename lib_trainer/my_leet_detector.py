@@ -305,7 +305,7 @@ class AsciiL33tDetector:
         :return:
         """
         lower_pwd = pwd.lower()
-        if lower_pwd in valid_set:
+        if lower_pwd in valid_set and lower_pwd not in ignore_set:
             if lower_pwd not in self.l33t_map:
                 self.l33t_map[lower_pwd] = 0
             self.l33t_map[lower_pwd] += 1
