@@ -8,7 +8,9 @@
 # context sensitive meaning when combined. For example ';p', '#1', '<3'
 #
 ###############################################################################
-
+"""
+This is detector of Fixed Collocations, or conteXt sensitive
+"""
 
 """
 letters and digits
@@ -98,4 +100,3 @@ def detect_context_sections(sections_list):
 
 
 pass
-

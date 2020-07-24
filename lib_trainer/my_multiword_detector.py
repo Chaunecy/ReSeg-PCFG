@@ -27,6 +27,14 @@
 import copy
 from typing import List, TextIO
 
+"""
+Note that catdog will not be treated as (cat, dog) 
+because both of them of length less than 4.
+
+helloabc will be treated as (hello, abc) 
+because one of multiword should be of length larger than of equal to 4
+"""
+
 
 def split_ado(string):
     """
