@@ -45,7 +45,7 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO):
             npass += sec
             info.append(sec)
             info.append(tag)
-        if password.lower() != npass:
+        if password.lower() != npass.lower():
             raise Exception("neq")
         print("\t".join(info), end="\n", file=save2)
     pass
@@ -79,18 +79,18 @@ def l33tseg(training: TextIO, test_set: TextIO, save2: TextIO):
             npass += sec
             info.append(sec)
             info.append(tag)
-        if password.lower() != npass:
+        if password.lower() != npass.lower():
+            # Note that we'll not lower X
+            # therefore, the best way is to compare password.lower
+            # with npass.lower
+            print(password)
+            print(section_list)
             raise Exception("neq")
         print("\t".join(info), end="\n", file=save2)
     pass
 
 
 def main():
-    for corpus in ["dodonew", "xato"]:
-        print(corpus)
-        l33tseg(open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-src.txt"),
-                open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-tar.txt"),
-                save2=open(f"/home/cw/Documents/Experiments/SegLab/Segments/RDed/{corpus}.txt", "w"))
     pass
 
 
