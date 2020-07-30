@@ -40,14 +40,18 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO):
         _ = digit_detection(section_list)
         _ = other_detection(section_list)
         info = [password, f"{num}"]
+        npass = ""
         for sec, tag in section_list:
+            npass += sec
             info.append(sec)
             info.append(tag)
+        if password.lower() != npass:
+            raise Exception("neq")
         print("\t".join(info), end="\n", file=save2)
     pass
 
 
-def rdedseg(training: TextIO, test_set: TextIO, save2: TextIO):
+def l33tseg(training: TextIO, test_set: TextIO, save2: TextIO):
     if not save2.writable() or not training.seekable():
         raise Exception(f"{save2.name} is not writable")
 
@@ -70,17 +74,21 @@ def rdedseg(training: TextIO, test_set: TextIO, save2: TextIO):
         section_list, _, _ = l33t_detector.parse_sections(section_list)
         section_list, _, _, _, _ = multiword_detector.parse_sections(section_list)
         info = [password, f"{num}"]
+        npass = ""
         for sec, tag in section_list:
+            npass += sec
             info.append(sec)
             info.append(tag)
+        if password.lower() != npass:
+            raise Exception("neq")
         print("\t".join(info), end="\n", file=save2)
     pass
 
 
 def main():
-    for corpus in ["csdn", "rockyou", "webhost", "dodonew", "xato"]:
+    for corpus in ["dodonew", "xato"]:
         print(corpus)
-        rdedseg(open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-src.txt"),
+        l33tseg(open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-src.txt"),
                 open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-tar.txt"),
                 save2=open(f"/home/cw/Documents/Experiments/SegLab/Segments/RDed/{corpus}.txt", "w"))
     pass
