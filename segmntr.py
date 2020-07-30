@@ -9,6 +9,9 @@ from lib_trainer.digit_detection import digit_detection
 from lib_trainer.keyboard_walk import detect_keyboard_walk
 from lib_trainer.multiword_detector import MultiWordDetector
 from lib_trainer.context_sensitive_detection import context_sensitive_detection
+from lib_trainer.my_context_detection import detect_context_sections
+from lib_trainer.my_leet_detector import AsciiL33tDetector
+from lib_trainer.my_multiword_detector import MyMultiWordDetector
 from lib_trainer.other_detection import other_detection
 from lib_trainer.year_detection import year_detection
 
@@ -44,12 +47,42 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO):
     pass
 
 
+def rdedseg(training: TextIO, test_set: TextIO, save2: TextIO):
+    if not save2.writable() or not training.seekable():
+        raise Exception(f"{save2.name} is not writable")
+
+    multiword_detector = MyMultiWordDetector()
+    for password in training:
+        password = password.strip("\r\n")
+        multiword_detector.train(password)
+    training.close()
+    l33t_detector = AsciiL33tDetector(multiword_detector)
+    l33t_detector.init_l33t(training.name, "ascii")
+    pwd_counter = defaultdict(int)
+    for password in test_set:
+        password = password.strip("\r\n")
+        pwd_counter[password] += 1
+    test_set.close()
+    for password, num in pwd_counter.items():
+        section_list = [(password, None)]
+        _ = year_detection(section_list)
+        section_list, _ = detect_context_sections(section_list)
+        section_list, _, _ = l33t_detector.parse_sections(section_list)
+        section_list, _, _, _, _ = multiword_detector.parse_sections(section_list)
+        info = [password, f"{num}"]
+        for sec, tag in section_list:
+            info.append(sec)
+            info.append(tag)
+        print("\t".join(info), end="\n", file=save2)
+    pass
+
+
 def main():
     for corpus in ["csdn", "rockyou", "webhost", "dodonew", "xato"]:
         print(corpus)
-        v41seg(open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-src.txt"),
-               open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-tar.txt"),
-               save2=open(f"/home/cw/Documents/Experiments/SegLab/Segments/PCFGv41/{corpus}.txt", "w"))
+        rdedseg(open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-src.txt"),
+                open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-tar.txt"),
+                save2=open(f"/home/cw/Documents/Experiments/SegLab/Segments/RDed/{corpus}.txt", "w"))
     pass
 
 
