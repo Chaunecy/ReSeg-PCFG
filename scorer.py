@@ -432,8 +432,8 @@ def struct_transform4ideal_improvement(pwd_list: TextIO, pcfg_scorer: MyScorer):
         for to_struct in to_structs:
             if to_struct not in struct_seg_counter:
                 struct_seg_counter[to_struct] = seg_of_struct(to_struct)
-            if struct_seg_counter[to_struct] > n_seg_of_origin:
-                continue
+            # if struct_seg_counter[to_struct] > n_seg_of_origin:
+            #     continue
             to_pwd = transform_struct2(pwd, from_struct=struct, to_struct=to_struct)
             mlp = pcfg_scorer.minus_log2_prob(to_pwd)
             if mlp < min_mlp:
@@ -540,12 +540,12 @@ def test():
 
 
 def ideal():
-    for corpus in ["webhost"]:
+    for corpus in ["csdn", "rockyou", "dodonew", "webhost", "xato"]:
         actual_ideal_wrapper(
-            f"./Rules/Origin/{corpus}",
-            target=open(f"/home/cw/Codes/Python/PwdTools/corpora/src/{corpus}-src.txt"),
+            f"C:\\SegLab\\Rules\\PCFG41\\{corpus}",
+            target=open(f"D:\\SegLab\\Corpora\\{corpus}-tar.txt"),
             # save2=open(f"/home/cw/Documents/Expirements/SegLab/4src/{corpus}-tar-actual.txt", "w"),
-            save_ideal=open(f"/home/cw/Documents/Expirements/SegLab/4src/{corpus}-src-ideal.txt", "w"),
+            save_ideal=open(f"D:\\SegLab\\SimulatedCracked\\{corpus}-ideal.txt", "w"),
             n=1000000)
         pass
     pass
