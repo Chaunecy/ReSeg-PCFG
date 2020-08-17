@@ -10,7 +10,6 @@
 import unittest
 import unittest.mock
 
-
 ## Functions and classes to tests
 #
 from ..keyboard_walk import detect_keyboard_walk
@@ -35,20 +34,18 @@ class Test_Keyboard_Walk_Checks(unittest.TestCase):
     #
     def test_single_keyboard_walk(self):
         section_list, found_list = detect_keyboard_walk("1qaz")
-        
+
         assert section_list == [('1qaz', 'K4')]
         assert found_list == ['1qaz']
 
-        
     ## Test two back to back keyboard walks
     #
     def test_single_keyboard_walk(self):
         section_list, found_list = detect_keyboard_walk("1qaz2wsx")
-      
-        assert section_list == [('1qaz', 'K4'),('2wsx', 'K4')]
-        assert found_list == ['1qaz','2wsx']
-        
-        
+
+        assert section_list == [('1qaz', 'K4'), ('2wsx', 'K4')]
+        assert found_list == ['1qaz', '2wsx']
+
     ## Test no keyboard walks
     #
     def test_no_keyboard_walks(self):
@@ -57,25 +54,22 @@ class Test_Keyboard_Walk_Checks(unittest.TestCase):
         assert section_list == [('test123test123', None)]
         assert found_list == []
 
-        
     ## Test keyboard walk and non-keyboard walk
     #
     def test_keyboard_walk_no_keyboard_walk(self):
         section_list, found_list = detect_keyboard_walk("1qaztest123")
 
-        assert section_list == [('1qaz', 'K4'),('test123', None)]
+        assert section_list == [('1qaz', 'K4'), ('test123', None)]
         assert found_list == ['1qaz']
-        
-    
+
     ## Test non-keyboard walk and then keyboard-walk
     #
     def test_no_keyboard_walk_keyboard_walk(self):
         section_list, found_list = detect_keyboard_walk("test1231qaz")
-        
-        assert section_list == [('test123', None),('1qaz', 'K4')]
+
+        assert section_list == [('test123', None), ('1qaz', 'K4')]
         assert found_list == ['1qaz']
-        
-        
+
     ## Test invalid keyboard walk + some non-keyboard walks
     #
     def test_invalid_keyboard_walk_and_non_keyboard_walk(self):
@@ -83,3 +77,11 @@ class Test_Keyboard_Walk_Checks(unittest.TestCase):
 
         assert section_list == [("tty789test", None)]
         assert found_list == []
+
+    def test_q1w2e3r4(self):
+        section_list, found_list = detect_keyboard_walk("q1w2e3r4")
+        assert section_list == [("q1w2e3r4", "K8")]
+
+    def test_1q2w3e4r(self):
+        section_list, found_list = detect_keyboard_walk("1q2w3e4r")
+        assert section_list == [("1q2w3e4r", "K8")]
