@@ -4,11 +4,11 @@ This is a library for Depth First Search and Dict Tree Compare.
 from typing import Dict, Any, List, Tuple
 
 
-def extract(dtree: Dict[str, Any], pwd: str, min_kbd_len: int = 4, end: str = "\x03"):
+def extract(dtree: Dict[str, Any], pwd: str, max_kbd_len: int, end: str = "\x03"):
     """
     find overlaps between dtree and pwd.
     Find the longest match first
-    :param min_kbd_len:
+    :param max_kbd_len:
     :param end: the end symbol of search a dict tree
     :param dtree:
     :param pwd:
@@ -28,23 +28,30 @@ def extract(dtree: Dict[str, Any], pwd: str, min_kbd_len: int = 4, end: str = "\
             a_kbd += c
             bk_dtree = bk_dtree[c]
             if end in bk_dtree:
+                # find end symbol, meaning this may be end of a keyboard pattern
+                # following chars instead of end symbol may be added.
                 add_a_kbd = ""
                 bak_add_a_kbd = ""
-                for addi in range(cur_i + i, min(cur_i + min_kbd_len - len(a_kbd) + 1, len_pwd)):
+                # find as much as possible chars added
+                # the max len for kbd pattern is max_kbd_len,
+                # current kbd len is len(a_kbd), therefore our end index is cur_i + max_kbd_len - len(a_kbd) + 1
+                for addi in range(cur_i + 1, min(cur_i + max_kbd_len - len(a_kbd) + 1, len_pwd)):
                     addc = lower_pwd[addi]
+                    # not found, return previously found
                     if addc not in bk_dtree:
                         break
                     bk_dtree = bk_dtree[addc]
                     add_a_kbd += addc
+                    # update position of end symbol
                     if end in bk_dtree:
                         bak_add_a_kbd = add_a_kbd
-                    pass
                 if bak_add_a_kbd != "":
                     a_kbd += bak_add_a_kbd
                     cur_i += len(bak_add_a_kbd)
                 len_a_kbd = len(a_kbd)
                 # start index of this kbd, length of this kbd, this is kbd
                 kbd_list.append((cur_i - len_a_kbd + 1, len_a_kbd, True))
+                # update global values
                 len_kbd += len_a_kbd
                 i += len_a_kbd
                 cur_i = i
@@ -81,7 +88,15 @@ def extract(dtree: Dict[str, Any], pwd: str, min_kbd_len: int = 4, end: str = "\
     pass
 
 
-def post_parse4case_free(res: List[Tuple[int, int, bool]], pwd: str, tag: str):
+def post_parse4case_free(res: List[Tuple[int, int, bool]], pwd: str, tag: str) -> (List[Tuple[str, str]], List[str]):
+    """
+    result gotten from extract() is hard to read.
+    this function will convert it into easy-to-read form.
+    :param res:
+    :param pwd:
+    :param tag:
+    :return:
+    """
     section_list = []
     tag_list = []
     for idx, len_seg, is_tagged in res:
@@ -93,21 +108,20 @@ def post_parse4case_free(res: List[Tuple[int, int, bool]], pwd: str, tag: str):
             section_list.append((seg, None))
         pass
     return section_list, tag_list
-    pass
 
 
-def gen_dtree(entries: Dict[str, int], end: str = "\x03"):
+def gen_dtree(entries: Dict[str, int], end: str = "\x03") -> Tuple[Dict, int]:
     """
     get dict tree of keyboard from a dict
     :param entries:
     :param end: End of a keyboard pattern
-    :return:
+    :return: dict tree and max_len
     """
     lst = sorted(entries.keys(), key=lambda x: len(x), reverse=True)
     if len(lst) == 0:
-        return {}
+        return {}, 20
     # min_len = len(lst[-1])
-    # max_len = len(lst[0])
+    max_len = len(lst[0])
     dtree = {}
     for entry in entries:
         tmp_dtree = dtree
@@ -116,27 +130,19 @@ def gen_dtree(entries: Dict[str, int], end: str = "\x03"):
                 tmp_dtree[c] = {}
             tmp_dtree = tmp_dtree[c]
         tmp_dtree[end] = True
-    return dtree
-    pass
-
-
-class KbdPtnDetection:
-    def __init__(self):
-        self.__kbd_dict = {}
-        pass
-
-    pass
+    return dtree, max_len
 
 
 def main():
     d = {
         "1q2w3e4r": 1,
+        "1q2w": 1,
         "q1w2e3r4": 1,
         "1qazxsw2": 1,
     }
-    dtree = gen_dtree(d)
+    dtree, max_len = gen_dtree(d)
     pwd = "1q2w3e4rhh"
-    kbd_list = extract(dtree, pwd)
+    kbd_list = extract(dtree, pwd, 8)
     sec_list, kbds = post_parse4case_free(kbd_list, pwd, "K")
     print(sec_list)
     pass

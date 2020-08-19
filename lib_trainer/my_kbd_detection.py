@@ -7,10 +7,21 @@ Then, detect all possible keyboard patterns in passwords.
 import os
 from typing import Dict
 
-from .my_dfs_lib import gen_dtree, extract, post_parse4case_free
+from lib_trainer.my_dfs_lib import gen_dtree, extract, post_parse4case_free
 
 path_kbd_allow = os.path.join(os.path.dirname(__file__), "kbd.allow")
 path_kbd_ignore = os.path.join(os.path.dirname(__file__), "kbd.ignore")
+
+
+def kbd_filter(candidate: str):
+    """
+    whether candidate follows keyboard pattern
+    :param candidate:
+    :return: is_kbd_pattern
+    """
+    if candidate.isdigit() or candidate.isalpha() or not any([(c.isdigit() or c.isalpha()) for c in candidate]):
+        return False
+    return True
 
 
 def load_kbd_allow() -> Dict[str, int]:
@@ -43,18 +54,17 @@ def load_kbd_ign() -> Dict[str, int]:
 
 
 kbd_allow = load_kbd_allow()
-print(kbd_allow)
 kbd_ign = load_kbd_ign()
 end = "\x03"
-kbd_dtree = gen_dtree(kbd_allow, end=end)
+kbd_dtree, max_kbd_len = gen_dtree(kbd_allow, end=end)
 
 
 def kbd_detection(pwd: str):
-    raw_kbd_lst = extract(dtree=kbd_dtree, pwd=pwd, min_kbd_len=4, end=end)
+    raw_kbd_lst = extract(dtree=kbd_dtree, pwd=pwd, max_kbd_len=max_kbd_len, end=end)
     sec_lst, kbd_lst = post_parse4case_free(raw_kbd_lst, pwd=pwd, tag="K")
     return sec_lst, kbd_lst
 
 
 if __name__ == '__main__':
-    print(kbd_detection("1q2w3e4rhh"))
+    print(kbd_detection("1Q2w3e4rhh"))
     pass
