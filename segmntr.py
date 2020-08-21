@@ -3,6 +3,8 @@
 This is to get the segments of a password.
 """
 import argparse
+import os
+
 import sys
 from collections import defaultdict
 from typing import TextIO
@@ -17,6 +19,7 @@ from lib_trainer.my_leet_detector import AsciiL33tDetector
 from lib_trainer.my_multiword_detector import MyMultiWordDetector
 from lib_trainer.other_detection import other_detection
 from lib_trainer.year_detection import year_detection
+from lib_trainer.my_kbd_detection import init as init_kbd, kbd_detection4seclist
 
 
 def v41seg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
@@ -34,9 +37,12 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
         password = password.strip("\r\n")
         pwd_counter[password] += 1
     test_set.close()
-
+    kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init_kbd(
+        os.path.join(os.path.dirname(__file__), "lib_trainer", "kbdv41.allow"),
+        os.path.join(os.path.dirname(__file__), "lib_trainer", "kbd.ign"))
     for password, num in pwd_counter.items():
-        section_list, found_walks = detect_keyboard_walk(password)
+        section_list, _ = detect_keyboard_walk(password)
+        section_list, _ = kbd_detection4seclist(section_list, kbd_dtree, max_kbd_len)
         _ = year_detection(section_list)
         """
         Note that there is a bug in context_sensitive_detection
