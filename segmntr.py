@@ -38,7 +38,7 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
         pwd_counter[password] += 1
     test_set.close()
     kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init_kbd(
-        os.path.join(os.path.dirname(__file__), "lib_trainer", "kbdv41.allow"),
+        [os.path.join(os.path.dirname(__file__), "lib_trainer", "kbdv41.allow")],
         os.path.join(os.path.dirname(__file__), "lib_trainer", "kbd.ign"))
     for password, num in pwd_counter.items():
         section_list, _ = detect_keyboard_walk(password)
@@ -89,12 +89,18 @@ def l33tseg(training: TextIO, test_set: TextIO, save2: TextIO, mixing: TextIO = 
         password = password.strip("\r\n")
         pwd_counter[password] += 1
     test_set.close()
+    kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init_kbd(
+        [os.path.join(os.path.dirname(__file__), "lib_trainer", "kbd.allow"),
+         os.path.join(os.path.dirname(__file__), "lib_trainer", "word.allow")],
+        os.path.join(os.path.dirname(__file__), "lib_trainer", "kbd.ign"))
+
     for password, num in pwd_counter.items():
         bak_password = password
         if password in mixing_patterns:
             password = mixing_patterns[password]
             pass
-        section_list = [(password, None)]
+        section_list, _ = detect_keyboard_walk(password)
+        section_list, _ = kbd_detection4seclist(section_list, kbd_dtree, max_kbd_len)
         _ = year_detection(section_list)
         section_list, _ = detect_context_sections(section_list)
         section_list, _, _ = l33t_detector.parse_sections(section_list)

@@ -24,18 +24,19 @@ def kbd_filter(candidate: str):
     return True
 
 
-def load_kbd_allow(file: str) -> Dict[str, int]:
+def load_kbd_allow(files: List[str]) -> Dict[str, int]:
     """
     words in this set will be treated as l33t and will not be parsed again
     :return: set of l33ts
     """
-    if not os.path.exists(file):
+    if not all([os.path.exists(file) for file in files]):
         return {}
-    fd = open(file, "r")
     allow = {}
-    for line in fd:
-        allow[line.strip("\r\n")] = 1
-    fd.close()
+    for file in files:
+        fd = open(file, "r")
+        for line in fd:
+            allow[line.strip("\r\n")] = 1
+        fd.close()
     return allow
 
 
@@ -53,8 +54,8 @@ def load_kbd_ign(file: str) -> Dict[str, int]:
     return ign
 
 
-def init(allow: str, ign: str, end: str = "\x03"):
-    kbd_allow = load_kbd_allow(allow)
+def init(allow_lists: List[str], ign: str, end: str = "\x03"):
+    kbd_allow = load_kbd_allow(allow_lists)
     kbd_ign = load_kbd_ign(ign)
     kbd_dtree, max_kbd_len = gen_dtree(kbd_allow, end=end)
     return kbd_dtree, max_kbd_len, kbd_allow, kbd_ign
@@ -81,7 +82,7 @@ def kbd_detection4seclist(sections: List[Tuple[str, Any]],
 
 
 def test():
-    kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init(path_kbd_allow, path_kbd_ignore)
+    kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init([path_kbd_allow], path_kbd_ignore)
     print(kbd_detection("1Q2w3e4rhh,", kbd_dtree, max_kbd_len))
     pass
 
