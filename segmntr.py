@@ -66,10 +66,17 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
     pass
 
 
-def l33tseg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
+def l33tseg(training: TextIO, test_set: TextIO, save2: TextIO, mixing: TextIO = None) -> None:
     if not save2.writable():
         raise Exception(f"{save2.name} is not writable")
 
+    mixing_patterns = {}
+    if mixing is not None:
+        for line in mixing:
+            reduced, origin = line.strip("\r\n").split("\t")
+            mixing_patterns[origin] = reduced
+            pass
+        pass
     multiword_detector = MyMultiWordDetector()
     for password in training:
         password = password.strip("\r\n")
@@ -83,12 +90,16 @@ def l33tseg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
         pwd_counter[password] += 1
     test_set.close()
     for password, num in pwd_counter.items():
+        bak_password = password
+        if password in mixing_patterns:
+            password = mixing_patterns[password]
+            pass
         section_list = [(password, None)]
         _ = year_detection(section_list)
         section_list, _ = detect_context_sections(section_list)
         section_list, _, _ = l33t_detector.parse_sections(section_list)
         section_list, _, _, _, _ = multiword_detector.parse_sections(section_list)
-        info = [password, f"{num}"]
+        info = [bak_password, f"{num}"]
         npass = ""
         for sec, tag in section_list:
             npass += sec
@@ -116,13 +127,15 @@ def main():
                      help="save output here")
     cli.add_argument("-c", "--choice", dest="choice", required=False, choices=[v41, l33t], type=str, default="v41",
                      help="use v41 or v41-with-l33t")
+    cli.add_argument("-m", "--mixing", dest="mixing", required=False, type=argparse.FileType("r"), default=None,
+                     help="mixing patterns")
     args = cli.parse_args()
     choice, training, testing, save2 = \
         args.choice, args.training, args.testing, args.save2  # type: str, TextIO, TextIO, TextIO
     if choice == v41:
         v41seg(training=training, test_set=testing, save2=save2)
     elif choice == l33t:
-        l33tseg(training=training, test_set=testing, save2=save2)
+        l33tseg(training=training, test_set=testing, save2=save2, mixing=args.mixing)
     else:
         print("Unknown method or method has not been implemented", file=sys.stderr)
         sys.exit(-1)
