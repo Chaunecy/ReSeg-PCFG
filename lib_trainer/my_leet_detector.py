@@ -319,14 +319,15 @@ class AsciiL33tDetector:
         if lower_pwd in valid_set and lower_pwd not in ignore_set:
             if lower_pwd not in self.l33t_map:
                 self.l33t_map[lower_pwd] = 0
-            self.l33t_map[lower_pwd] += 1
+            # self.l33t_map[lower_pwd] += 1
+            return
         if invalid(pwd):
             return
         is_l33t, leet = self.find_l33t(lower_pwd)
         if is_l33t:
             if lower_pwd not in self.l33t_map:
                 self.l33t_map[lower_pwd] = 0
-            self.l33t_map[lower_pwd] += 1
+            # self.l33t_map[lower_pwd] += 1
             pass
         pass
 
