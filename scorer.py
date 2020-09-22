@@ -452,7 +452,7 @@ def main():
 
 
 def test():
-    pcfg_scorer = MyScorer(rule="./Rules/")
+    pcfg_scorer = MyScorer(rule="/home/cw/Documents/Experiments/SegLab/Rules/RDed/rockyou")
     usr_in = ""
     while usr_in != "exit":
         usr_in = input("Type in password: ")
