@@ -2,7 +2,12 @@
 What's Keyboard Pattern?
 """
 import abc
+from collections import defaultdict
 from typing import List, Tuple, Dict, Union
+
+
+def single(string: str) -> bool:
+    return string.isdigit() or string.isalpha() or all([not c.isdigit() and not c.isalpha() for c in string])
 
 
 class Keyboard:
@@ -209,7 +214,12 @@ class KeyboardDetection:
                 pass
 
             new_track.append(tight_line)
+
         return new_track, rejected, (appear_x, appear_y), (chr_cnt, uniq_cnt), int(total_join_edge / 2)
+
+    def sequence(self, string: str):
+
+        pass
 
     def extract_kbd(self, string: str):
         """
@@ -218,8 +228,7 @@ class KeyboardDetection:
         :return:
         """
         fast_fail = [], [(0, len(string), False)]
-        if string.isdigit() or string.isalpha() \
-                or all([not c.isdigit() and not c.isalpha() for c in string]):
+        if single(string):
             return fast_fail
         self.__track = self.__kbd.get_track(string)
         new_track, rejected, (appear_x, appear_y), (chr_cnt, uniq_cnt), total_join_edge = \
@@ -229,8 +238,8 @@ class KeyboardDetection:
             return fast_fail
         elif uniq_cnt == len(appear_x) * len(appear_y):
             is_kbd = True
-        elif total_join_edge > uniq_cnt - 1:
-            is_kbd = True
+        # elif total_join_edge > uniq_cnt:
+        #     is_kbd = True
         if not is_kbd:
             return fast_fail
         kbd_str = ["\x03" for _ in string]
@@ -248,7 +257,7 @@ class KeyboardDetection:
                 keyboard += c
             else:
                 if len(keyboard) > 0:
-                    idx_list.append((i - len(keyboard), len(keyboard), True))
+                    idx_list.append((i - len(keyboard), len(keyboard), not single(keyboard)))
                     kbd_list.append(keyboard)
                 keyboard = ""
                 if len(idx_list) == 0:
@@ -262,7 +271,7 @@ class KeyboardDetection:
 
         if len(keyboard) > 0:
             kbd_list.append(keyboard)
-            idx_list.append((len(kbd_str) - len(keyboard), len(keyboard), True))
+            idx_list.append((len(kbd_str) - len(keyboard), len(keyboard), not single(keyboard)))
         return kbd_list, idx_list
 
     def parse_sections(self, string: str, tag4kbd: str = "K") -> Tuple[List[str], List[Tuple[str, Union[str, None]]]]:
@@ -273,7 +282,6 @@ class KeyboardDetection:
         :return: keyboard patterns, sections of the string
         """
         _, idx_list = self.extract_kbd(string)
-        print(idx_list)
         section_list: List[Tuple[str, Union[str, None]]] = []
         kbd_list: List[str] = []
         for _start, _len, _is_kbd in idx_list:
@@ -289,9 +297,26 @@ class KeyboardDetection:
     pass
 
 
-if __name__ == '__main__':
+def main():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
+    kbd_dict = defaultdict(lambda: defaultdict(int))
+    with open("/home/cw/Documents/Experiments/SegLab/Corpora/csdn-src.txt") as fd:
+        for line in fd:
+            line = line.strip("\r\n")
+            kbd_list, section_list = kd.parse_sections(line)
+            for kbd in kbd_list:
+                kbd_dict[len(kbd)][kbd] += 1
+    save = open("save.o", "w")
+    for _len, len_kbd_dict in kbd_dict.items():
+        for kbd, cnt in len_kbd_dict.items():
+            save.write(f"{kbd}\t{cnt}\n")
+
+    save.close()
     # print(am.get_layout())
     # t = am.get_track("hello")
     # print(t)
+
+
+if __name__ == '__main__':
+    main()
