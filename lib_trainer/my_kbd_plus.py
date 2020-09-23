@@ -2,7 +2,7 @@
 What's Keyboard Pattern?
 """
 import abc
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 
 
 class Keyboard:
@@ -24,6 +24,10 @@ class Keyboard:
     @abc.abstractmethod
     def get_pos(self, c: str) -> Tuple[int, int]:
         return -1, -1
+
+    @abc.abstractmethod
+    def get_chr(self, pos: Tuple[int, int]) -> str:
+        return ""
 
     def get_zero_kbd(self) -> List[List[List[int]]]:
         """
@@ -82,6 +86,14 @@ class Keyboard:
 
 class AmericanKeyboard(Keyboard):
 
+    def get_chr(self, pos: Tuple[int, int]) -> str:
+        """
+        Note that this function return only unshift keys
+        :param pos:
+        :return:
+        """
+        return self.__pos_dict.get(pos)
+
     def __init__(self):
         super().__init__()
         _kbd = [
@@ -105,6 +117,7 @@ class AmericanKeyboard(Keyboard):
 
         kbd = {}
         unshift = {}
+        pos_dict = {}
         for idx_x, (normal_line, shift_line) in enumerate(_kbd):
             normal_chr_list = [c for c in list(normal_line) if len(c) > 0]
             shift_chr_list = [c for c in list(shift_line) if len(c) > 0]
@@ -112,7 +125,9 @@ class AmericanKeyboard(Keyboard):
                 unshift[shift_chr] = normal_chr
                 kbd[normal_chr] = (idx_x, idx_y)
                 kbd[shift_chr] = (idx_x, idx_y)
+                pos_dict[(idx_x, idx_y)] = normal_chr
         self.__layout = kbd
+        self.__pos_dict = pos_dict
         self._unshift = unshift
 
     def get_layout(self):
@@ -166,20 +181,22 @@ class KeyboardDetection:
 
     def __reject_isolated(self):
         track = self.__track
-        new_track = []
+        new_track: List[List[List[int]]] = []
         appear_x, appear_y = set(), set()
         total_join_edge = 0
         total_single_edge = 0
         chr_cnt = 0
         uniq_cnt = 0
+        rejected = []
         for x, line in enumerate(track):
-            tight_line = []
+            tight_line: List[List[int]] = []
             for y, k in enumerate(line):
                 if len(self.__track[x][y]) == 0:
                     tight_line.append([])
                 else:
                     join_edge, single_edge = self.is_isolated((x, y))
                     if join_edge == 0:
+                        rejected.extend(self.__track[x][y])
                         tight_line.append([])
                     else:
                         appear_x.add(x)
@@ -192,20 +209,82 @@ class KeyboardDetection:
                 pass
 
             new_track.append(tight_line)
-        return new_track, (appear_x, appear_y), (chr_cnt, uniq_cnt), int(total_join_edge / 2)
+        return new_track, rejected, (appear_x, appear_y), (chr_cnt, uniq_cnt), int(total_join_edge / 2)
 
-    def detect(self, string: str):
+    def extract_kbd(self, string: str):
+        """
+        detect keyboard patterns in string, and return these keyboard patterns
+        :param string:
+        :return:
+        """
+        fast_fail = [], [(0, len(string), False)]
         if string.isdigit() or string.isalpha() \
                 or all([not c.isdigit() and not c.isalpha() for c in string]):
-            return
+            return fast_fail
         self.__track = self.__kbd.get_track(string)
-        new_track, (appear_x, appear_y), (chr_cnt, uniq_cnt), total_join_edge = self.__reject_isolated()
-        if total_join_edge > uniq_cnt - 2:
-            pass
-        for t in new_track:
-            print(t)
-        print(chr_cnt, uniq_cnt, total_join_edge)
-        pass
+        new_track, rejected, (appear_x, appear_y), (chr_cnt, uniq_cnt), total_join_edge = \
+            self.__reject_isolated()
+        is_kbd = False
+        if chr_cnt < 4:
+            return fast_fail
+        elif uniq_cnt == len(appear_x) * len(appear_y):
+            is_kbd = True
+        elif total_join_edge > uniq_cnt - 1:
+            is_kbd = True
+        if not is_kbd:
+            return fast_fail
+        kbd_str = ["\x03" for _ in string]
+        for x, line in enumerate(new_track):
+            for y, indices in enumerate(line):
+                c = self.__kbd.get_chr((x, y))
+                for idx in indices:
+                    kbd_str[idx] = c
+        # keyboards = "".join(kbd_str).split("\x03")
+        keyboard = ""
+        kbd_list = []
+        idx_list = []
+        for i, c in enumerate(kbd_str):
+            if c != "\x03":
+                keyboard += c
+            else:
+                if len(keyboard) > 0:
+                    idx_list.append((i - len(keyboard), len(keyboard), True))
+                    kbd_list.append(keyboard)
+                keyboard = ""
+                if len(idx_list) == 0:
+                    idx_list.append((i, 1, False))
+                else:
+                    _start, _len, _is_kbd = idx_list[-1]
+                    if not _is_kbd:
+                        idx_list[-1] = (_start, _len + 1, _is_kbd)
+                    else:
+                        idx_list.append((i, 1, False))
+
+        if len(keyboard) > 0:
+            kbd_list.append(keyboard)
+            idx_list.append((len(kbd_str) - len(keyboard), len(keyboard), True))
+        return kbd_list, idx_list
+
+    def parse_sections(self, string: str, tag4kbd: str = "K") -> Tuple[List[str], List[Tuple[str, Union[str, None]]]]:
+        """
+        find keyboard patterns and structures of the given string
+        :param string: string to be parsed
+        :param tag4kbd: you may define how to label kbd patterns
+        :return: keyboard patterns, sections of the string
+        """
+        _, idx_list = self.extract_kbd(string)
+        print(idx_list)
+        section_list: List[Tuple[str, Union[str, None]]] = []
+        kbd_list: List[str] = []
+        for _start, _len, _is_kbd in idx_list:
+            section = string[_start:_start + _len]
+            tag = f"{tag4kbd}{_len}"
+            if _is_kbd:
+                section_list.append((section, tag))
+                kbd_list.append(section)
+            else:
+                section_list.append((section, None))
+        return kbd_list, section_list
 
     pass
 
@@ -213,10 +292,6 @@ class KeyboardDetection:
 if __name__ == '__main__':
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    kd.detect("1a2s3d4fh")
-    kd.detect("1qaz3edc")
-    kd.detect("11q2a3z4")
-
     # print(am.get_layout())
     # t = am.get_track("hello")
     # print(t)
