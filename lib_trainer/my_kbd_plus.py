@@ -10,6 +10,34 @@ def single(string: str) -> bool:
     return string.isdigit() or string.isalpha() or all([not c.isdigit() and not c.isalpha() for c in string])
 
 
+def split_ado(string):
+    """
+    a replacement for re
+    :param string: any string
+    :return: alpha, digit, other parts in a list
+    """
+    prev_chr_type = None
+    acc = ""
+    parts = []
+    for c in string:
+        if c.isalpha():
+            cur_chr_type = "alpha"
+        elif c.isdigit():
+            cur_chr_type = "digit"
+        else:
+            cur_chr_type = "other"
+        if prev_chr_type is None:
+            acc = c
+        elif prev_chr_type == cur_chr_type:
+            acc += c
+        else:
+            parts.append((prev_chr_type, acc))
+            acc = c
+        prev_chr_type = cur_chr_type
+    parts.append((prev_chr_type, acc))
+    return parts
+
+
 class Keyboard:
     def __init__(self):
         # first, second, third, forth = layout
@@ -17,6 +45,7 @@ class Keyboard:
         self._kbd = {}
         self._max_x = 5
         self._max_y = 15
+        self._min_kbd_len = 4
         pass
 
     def get_bound(self):
@@ -84,9 +113,14 @@ class Keyboard:
             tight_line = []
             for y, k in enumerate(line):
                 if y in appear_y:
-                    tight_line.append(y)
-                pass
-        pass
+                    if len(k) > 0:
+                        tight_line.append(self.get_chr((x, y)))
+                    else:
+                        # to simplify
+                        tight_line.append(self.get_chr((x, y)))
+            if len(tight_line) > 0:
+                tight.append(tight_line)
+        return tight, (len(appear_x), len(appear_y))
 
 
 class AmericanKeyboard(Keyboard):
@@ -157,9 +191,6 @@ class KeyboardDetection:
         self.__track: List[List[List[int]]] = []
         pass
 
-    def adjacent(self):
-        pass
-
     def is_isolated(self, point: Tuple[int, int]):
         x, y = point
         edge = 0
@@ -217,9 +248,48 @@ class KeyboardDetection:
 
         return new_track, rejected, (appear_x, appear_y), (chr_cnt, uniq_cnt), int(total_join_edge / 2)
 
-    def sequence(self, string: str):
+    def sequence(self, string: str, min_kbd_len: int = 4):
+        if len(string) < min_kbd_len:
+            return [], []
+        prev_x, prev_y = self.__kbd.get_pos(string[0])
+        kbd_list = []
+        sec_list = []
+        seq = ""
+        idx = 0
+        len_string = len(string)
+        prev_kbd_idx = 0
+        while idx < len_string:
+            c = string[idx]
+            cur_x, cur_y = self.__kbd.get_pos(c)
+            adjacent = abs(cur_x - prev_x) + abs(cur_y - prev_y) <= 1
+            prev_x, prev_y = cur_x, cur_y
+            if adjacent:
+                seq += c
+            else:
+                if len(seq) >= min_kbd_len:
+                    kbd_list.append(seq)
+                    if len(seq) < idx - prev_kbd_idx:
+                        sec_list.append((string[prev_kbd_idx:idx - len(seq)], None))
+                    sec_list.append((seq, f"K{len(seq)}"))
+                    prev_kbd_idx = idx
+                seq = c
+            idx += 1
+        if len(seq) >= min_kbd_len:
+            kbd_list.append(seq)
+            if len(seq) < idx - prev_kbd_idx:
+                sec_list.append((string[prev_kbd_idx:idx - len(seq)], None))
+            sec_list.append((seq, f"K{len(seq)}"))
+        else:
+            sec_list.append((string[prev_kbd_idx:idx], None))
+        return kbd_list, sec_list
 
-        pass
+    def parallel(self, string: str, min_kbd_len: int = 4):
+        if len(string) < min_kbd_len:
+            return False
+        track, (row_cnt, col_cnt) = self.__kbd.get_tight_track(string)
+        if len(string) == row_cnt * col_cnt:
+            return True
+        return False
 
     def extract_kbd(self, string: str):
         """
@@ -228,50 +298,17 @@ class KeyboardDetection:
         :return:
         """
         fast_fail = [], [(0, len(string), False)]
-        if single(string):
+        parts = split_ado(string)
+        # the pwd has two segments, or each segment has length 3+
+        if len(parts) <= 2 or all([len(p) >= 3 for _, p in parts]):
             return fast_fail
-        self.__track = self.__kbd.get_track(string)
-        new_track, rejected, (appear_x, appear_y), (chr_cnt, uniq_cnt), total_join_edge = \
-            self.__reject_isolated()
-        is_kbd = False
-        if chr_cnt < 4:
-            return fast_fail
-        elif uniq_cnt == len(appear_x) * len(appear_y):
-            is_kbd = True
-        # elif total_join_edge > uniq_cnt:
-        #     is_kbd = True
-        if not is_kbd:
-            return fast_fail
-        kbd_str = ["\x03" for _ in string]
-        for x, line in enumerate(new_track):
-            for y, indices in enumerate(line):
-                c = self.__kbd.get_chr((x, y))
-                for idx in indices:
-                    kbd_str[idx] = c
-        # keyboards = "".join(kbd_str).split("\x03")
-        keyboard = ""
-        kbd_list = []
-        idx_list = []
-        for i, c in enumerate(kbd_str):
-            if c != "\x03":
-                keyboard += c
-            else:
-                if len(keyboard) > 0:
-                    idx_list.append((i - len(keyboard), len(keyboard), not single(keyboard)))
-                    kbd_list.append(keyboard)
-                keyboard = ""
-                if len(idx_list) == 0:
-                    idx_list.append((i, 1, False))
-                else:
-                    _start, _len, _is_kbd = idx_list[-1]
-                    if not _is_kbd:
-                        idx_list[-1] = (_start, _len + 1, _is_kbd)
-                    else:
-                        idx_list.append((i, 1, False))
 
-        if len(keyboard) > 0:
-            kbd_list.append(keyboard)
-            idx_list.append((len(kbd_str) - len(keyboard), len(keyboard), not single(keyboard)))
+        kbd_list, sec_list = self.sequence(string)
+        for sec, tag in sec_list:
+            pass
+        idx_list = []
+        print(sec_list)
+
         return kbd_list, idx_list
 
     def parse_sections(self, string: str, tag4kbd: str = "K") -> Tuple[List[str], List[Tuple[str, Union[str, None]]]]:
@@ -318,5 +355,14 @@ def main():
     # print(t)
 
 
+def test():
+    am = AmericanKeyboard()
+    kd = KeyboardDetection(am)
+    for pwd in ["12s3d4f"]:
+        kd.extract_kbd(pwd)
+        kd.parallel(pwd)
+    pass
+
+
 if __name__ == '__main__':
-    main()
+    test()
