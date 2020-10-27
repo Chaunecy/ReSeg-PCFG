@@ -14,10 +14,8 @@ import sys
 from collections import Counter
 
 # Local imports
-from .leet_detector import LeetDetector
 from .keyboard_walk import detect_keyboard_walk
 from .email_detection import email_detection
-from .my_kbd_detection import kbd_detection_
 from .website_detection import website_detection
 from .year_detection import year_detection
 from .context_sensitive_detection import context_sensitive_detection
@@ -44,7 +42,7 @@ class PCFGPasswordParser:
         self.multiword_detector = multiword_detector
         
         # Initialize Leet Speak Detector
-        self.leet_detector = LeetDetector(self.multiword_detector)
+        # self.leet_detector = LeetDetector(self.multiword_detector)
         
         ## Used for debugging/statistics
         #
@@ -92,8 +90,8 @@ class PCFGPasswordParser:
         section_list, found_walks = detect_keyboard_walk(password)
         
         self._update_counter_len_indexed(self.count_keyboard, found_walks)
-        section_list, found_kbd = kbd_detection_(section_list)
-        self._update_counter_len_indexed(self.count_keyboard, found_kbd)
+        # section_list, found_kbd = kbd_detection_(section_list)
+        # self._update_counter_len_indexed(self.count_keyboard, found_kbd)
         # Identify e-mail and web sites before doing other string parsing
         # this is because they can have digits + special characters
         
