@@ -81,7 +81,7 @@ def load_grammar(grammar, rule_directory):
     except IOError as msg:
         print("Could not open the config file for the ruleset specified. The rule directory may not exist",file=sys.stderr)
         print("Ruleset: " + str(rule_directory))
-        return False
+        sys.exit(-1)
     except configparser.Error as msg:
         print("Error occured parsing the configuration file: " + str(msg),file=sys.stderr)
         return False 
