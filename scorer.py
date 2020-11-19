@@ -16,36 +16,6 @@ WARNING:
 L33t has not been considered. so passwords with l33t will not be correctly evaluated.
 """
 
-terminal_re = re.compile(r"([ADKOXY]\d+)")
-
-
-def split_ado(string):
-    """
-    a replacement for re
-    :param string: any string
-    :return: alpha, digit, other parts in a list
-    """
-    prev_chr_type = None
-    acc = ""
-    parts = []
-    for c in string:
-        if c.isalpha():
-            cur_chr_type = "alpha"
-        elif c.isdigit():
-            cur_chr_type = "digit"
-        else:
-            cur_chr_type = "other"
-        if prev_chr_type is None:
-            acc = c
-        elif prev_chr_type == cur_chr_type:
-            acc += c
-        else:
-            parts.append(acc)
-            acc = c
-        prev_chr_type = cur_chr_type
-    parts.append(acc)
-    return parts
-
 
 def extend_dict(counter: Counter):
     items = list(counter.keys())
@@ -94,85 +64,6 @@ def minus_log_prob2rank(minus_log_probs, positions, minus_log_prob):
     pass
 
 
-def extract_lds(pwd: str) -> str:
-    segs = split_ado(pwd)
-    ret = ""
-    for seg in segs:
-        if seg.isalpha():
-            ret += ("L" * len(seg))
-        elif seg.isdigit():
-            ret += ("D" * len(seg))
-        else:
-            ret += ("S" * len(seg))
-        pass
-    return ret
-    pass
-
-
-def ado2lds(raw_struct: str) -> (str, List[Tuple[int, int]], int):
-    """
-    Note that the length of Tag X is unknown, here I assign it length 2.
-    This is a trade off.
-
-    X, K, these two tags is hard to parse. So passwords containing these
-    will be parsed in another way.
-    :param raw_struct: structure of password
-    :return: what password's structures may be, (LLLDDD, removed, 6)
-    """
-    # if raw_struct.find("X") > -1 or raw_struct.find("K") > -1:
-    #     return use_all
-    parts = terminal_re.findall(raw_struct)
-    res = ""
-    plen = 0
-    rm = []
-    start_pos = 0
-    for p in parts:
-        tag, span = p[0], int(p[1:])
-        add_len = span
-        if tag == 'A':
-            res += ("L" * span)
-        elif tag == 'D':
-            res += ("D" * span)
-        elif tag == 'O':
-            res += ("S" * span)
-        elif tag == 'Y':
-            res += "DDDD"
-            add_len *= 4
-        elif tag == 'K':
-            rm.append((start_pos, span))
-        elif tag == 'X':
-            add_len *= 2
-            rm.append((start_pos, add_len))
-            pass
-        start_pos += add_len
-        plen += add_len
-    # if len(res) == plen:
-    return res, rm, plen
-    # else:
-    #     print(f"struct for {raw_struct} does't match in length: {res}", file=sys.stderr)
-    #     sys.exit(-1)
-    pass
-
-
-def rm_substr(struct: str, rm: List[Tuple[int, int]]) -> str:
-    """
-    remove substr "rm" from struct
-    :param struct: struct to be parsed
-    :param rm: List[(start_pos, length)]
-    :return: removed struct
-    """
-    res = ""
-    for i, s in enumerate(struct):
-        need_rm = False
-        for start, span in rm:
-            if start <= i < start + span:
-                need_rm = True
-                break
-        if not need_rm:
-            res += s
-    return res
-
-
 class MyScorer:
     def __init__(self, rule: str, limit=0):
         # Information for using this grammar
@@ -203,7 +94,7 @@ class MyScorer:
         self.count_raw_base_structures = Counter()
         self.minimal_prob = sys.float_info.min
         self.__load_grammars()
-        self.__terminal_re = terminal_re
+        self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
         print("Done!", file=sys.stderr)
         base_struct_tree = {}
         for base_struct in self.count_base_structures:
