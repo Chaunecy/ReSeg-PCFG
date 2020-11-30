@@ -37,12 +37,12 @@ def v41seg(training: TextIO, test_set: TextIO, save2: TextIO) -> None:
         password = password.strip("\r\n")
         pwd_counter[password] += 1
     test_set.close()
-    kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init_kbd(
-        [os.path.join(os.path.dirname(__file__), "lib_trainer", "kbdv41.allow")],
-        os.path.join(os.path.dirname(__file__), "lib_trainer", "kbd.ign"))
+    # kbd_dtree, max_kbd_len, kbd_allow, kbd_ign = init_kbd(
+    #     [os.path.join(os.path.dirname(__file__), "lib_trainer", "kbdv41.allow")],
+    #     os.path.join(os.path.dirname(__file__), "lib_trainer", "kbd.ign"))
     for password, num in pwd_counter.items():
         section_list, _ = detect_keyboard_walk(password)
-        section_list, _ = kbd_detection4seclist(section_list, kbd_dtree, max_kbd_len)
+        # section_list, _ = kbd_detection4seclist(section_list, kbd_dtree, max_kbd_len)
         _ = year_detection(section_list)
         """
         Note that there is a bug in context_sensitive_detection

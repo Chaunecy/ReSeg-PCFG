@@ -2,6 +2,8 @@ import argparse
 import bisect
 import random
 import re
+import time
+
 import sys
 from collections import Counter, defaultdict
 from math import log2, ceil
@@ -214,11 +216,20 @@ class MyScorer:
         total_items = len(raw_pwd_counter)
         print("Calc prob...", file=sys.stderr)
         i = 0
-        back = "\b" * 21
+        start = time.time()
+        step = 10000
         for pwd, num in raw_pwd_counter.items():
             pwd_counter[pwd] = (num, self.minus_log2_prob(pwd))
             i += 1
-            print(f"{i:10d}/{total_items:10d}{back}", end="", file=sys.stderr)
+            if i % step == 0:
+                t = time.time()
+                duration = t - start
+                start = t
+                ratio = step / duration
+                last = (total_items - i) / ratio
+                print(f"{i / total_items * 100:5.2f}%, {ratio:10.2f} itr/sec, {last:10.2f} seconds", end="\r",
+                      file=sys.stderr)
+        print("")
         return pwd_counter
         pass
 
