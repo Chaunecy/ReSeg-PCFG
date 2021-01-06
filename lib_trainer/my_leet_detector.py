@@ -298,13 +298,20 @@ class AsciiL33tDetector:
         """
 
         unleeted_list = self.unleet(word)
+        raw_leets = []
         for unleeted in unleeted_list:
             unleeted = "".join(unleeted)
-            count = self.multi_word_detector.get_count(unleeted)
-            if count >= self.multi_word_detector.threshold:
-                return True, unleeted
+            for i in range(0, len(unleeted)):
+                for j in range(len(unleeted), i + self.__min_l33ts, -1):
+                    substr = unleeted[i:j]
+                    count = self.multi_word_detector.get_count(substr)
+                    if count >= self.multi_word_detector.threshold:
+                        if invalid(substr):
+                            break
+                        raw_leets.append(substr)
+                        # return True, unleeted
                 # valid.append((unleeted, count))
-        return False, ""
+        return len(raw_leets) > 0, raw_leets
 
     def detect_l33t(self, pwd: str):
         """
@@ -323,10 +330,11 @@ class AsciiL33tDetector:
             return
         if invalid(pwd):
             return
-        is_l33t, leet = self.find_l33t(lower_pwd)
+        is_l33t, leets = self.find_l33t(lower_pwd)
         if is_l33t:
-            if lower_pwd not in self.l33t_map:
-                self.l33t_map[lower_pwd] = 0
+            for leet in leets:
+                if leet not in self.l33t_map:
+                    self.l33t_map[leet] = 0
             # self.l33t_map[lower_pwd] += 1
             pass
         pass
