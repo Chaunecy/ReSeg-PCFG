@@ -2,6 +2,7 @@
 What's Keyboard Pattern?
 """
 import abc
+import sys
 from collections import defaultdict
 from typing import List, Tuple, Dict, Union
 
@@ -117,7 +118,7 @@ class Keyboard:
                         tight_line.append(self.get_chr((x, y)))
                     else:
                         # to simplify
-                        tight_line.append(self.get_chr((x, y)))
+                        tight_line.append('\x00')
             if len(tight_line) > 0:
                 tight.append(tight_line)
         return tight, (len(appear_x), len(appear_y))
@@ -266,7 +267,7 @@ class KeyboardDetection:
             if adjacent:
                 seq += c
             else:
-                if len(seq) >= min_kbd_len:
+                if len(seq) >= min_kbd_len and not single(seq):
                     kbd_list.append(seq)
                     if len(seq) < idx - prev_kbd_idx:
                         sec_list.append((string[prev_kbd_idx:idx - len(seq)], None))
@@ -274,22 +275,81 @@ class KeyboardDetection:
                     prev_kbd_idx = idx
                 seq = c
             idx += 1
-        if len(seq) >= min_kbd_len:
+        if len(seq) >= min_kbd_len and not single(seq):
             kbd_list.append(seq)
             if len(seq) < idx - prev_kbd_idx:
                 sec_list.append((string[prev_kbd_idx:idx - len(seq)], None))
             sec_list.append((seq, f"K{len(seq)}"))
         else:
             sec_list.append((string[prev_kbd_idx:idx], None))
-        return kbd_list, sec_list
+        return kbd_list
 
-    def parallel(self, string: str, min_kbd_len: int = 4):
-        if len(string) < min_kbd_len:
-            return False
-        track, (row_cnt, col_cnt) = self.__kbd.get_tight_track(string)
-        if len(string) == row_cnt * col_cnt:
-            return True
-        return False
+    def parallel2(self, string: str, min_kbd_len: int = 4):
+        if len(string) < min_kbd_len or single(string):
+            return []
+        all_kbd = []
+        for i in range(0, len(string) - min_kbd_len):
+            for j in range(len(string), i + min_kbd_len - 1, -1):
+                tmp_s = string[i:j]
+                if single(tmp_s):
+                    break
+                track, (row_cnt, col_cnt) = self.__kbd.get_tight_track(tmp_s)
+                if len(set(tmp_s)) == row_cnt * col_cnt and min(row_cnt, col_cnt) > 1:
+                    # print(f"r: {row_cnt}, c: {col_cnt}, s: {tmp_s}")
+                    all_kbd.append(tmp_s)
+                pass
+            pass
+        return all_kbd
+        pass
+
+    def vertical(self, string: str, min_kbd_len: int = 4):
+        if len(string) < min_kbd_len or single(string):
+            return []
+        all_kbd = []
+        for i in range(0, len(string) - min_kbd_len):
+            for j in range(len(string), i + min_kbd_len - 1, -1):
+                tmp_s = string[i:j]
+                n_letter, n_other = 0, 0
+                for c in tmp_s:
+                    if c.isalpha():
+                        n_letter += 1
+                    else:
+                        n_other += 1
+                k = split_ado(tmp_s)
+                if len(k) < len(tmp_s):
+                    continue
+                if abs(n_letter - n_other) > 1:
+                    continue
+                if single(tmp_s):
+                    break
+                track, _ = self.__kbd.get_tight_track(tmp_s)
+                col_no_x00 = True
+                row_no_x00 = True
+                for idx_r, row in enumerate(track):
+                    if row[0] != '\x00':
+                        continue
+                    for c in row:
+                        if c == '\x00':
+                            row_no_x00 = False
+                            break
+                    break
+                if len(track) > 1:
+                    c_idx = -1
+                    for row in track:
+                        for idx_c, itm in enumerate(row):
+                            if itm != '\x00':
+                                if c_idx < 0:
+                                    c_idx = idx_c
+                                elif idx_c != c_idx:
+                                    col_no_x00 = False
+                                break
+                        pass
+
+                if col_no_x00 and row_no_x00:
+                    all_kbd.append(tmp_s)
+                pass
+            pass
+        return all_kbd
 
     def extract_kbd(self, string: str):
         """
@@ -307,7 +367,6 @@ class KeyboardDetection:
         for sec, tag in sec_list:
             pass
         idx_list = []
-        print(sec_list)
 
         return kbd_list, idx_list
 
@@ -350,19 +409,59 @@ def main():
             save.write(f"{kbd}\t{cnt}\n")
 
     save.close()
-    # print(am.get_layout())
     # t = am.get_track("hello")
-    # print(t)
 
 
 def test():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    for pwd in ["12s3d4f"]:
-        kd.extract_kbd(pwd)
-        kd.parallel(pwd)
+    for pwd in ["1q2a3z", 'a5201314']:
+        print(kd.sequence(pwd))
+        print(kd.parallel2(pwd))
+        print(kd.vertical(pwd))
+    pass
+
+
+def wrapper():
+    am = AmericanKeyboard()
+    kd = KeyboardDetection(am)
+    for corpus in ['rockyou', 'webhost', 'youku']:
+        sequence = 0
+        parallel = 0
+        vertical = 0
+        total = 0
+        fd = open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-all.txt")
+        for line in fd:
+            if total % 10000000 == 0:
+                print(total, file=sys.stderr)
+            # if total > 10000:
+            #     break
+            line = line.strip("\r\n")
+            seq = kd.sequence(line)
+            total += 1
+            if len(seq) > 0:
+                sequence += 1
+                # print('seq', seq)
+            else:
+                par = kd.parallel2(line)
+                if len(par) > 0:
+                    parallel += 1
+                    # print('par', par)
+                else:
+                    ver = kd.vertical(line)
+                    if len(ver) > 0:
+                        # print('ver', ver)
+                        vertical += 1
+            pass
+        total_kbd = sequence + parallel + vertical
+        print("")
+        print(f"corpus: {corpus}")
+        print(f"sequence: {sequence}, %: {sequence / total_kbd * 100},\n"
+              f"parallel: {parallel}, %: {parallel / total_kbd * 100},\n"
+              f"vertical: {vertical}, %: {vertical / total_kbd * 100}")
+
     pass
 
 
 if __name__ == '__main__':
-    test()
+    wrapper()
