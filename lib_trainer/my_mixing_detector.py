@@ -152,7 +152,7 @@ class MixingDetector:
         origin_struct = tuple([(t, n) for _, t, n, in segmented])
         str_struct = "".join([f"{t}{n}" for _, t, n, in segmented])
         group, n_struct = group4struct(str_struct)
-        possible_structs = self.struct_group.get(group)
+        possible_structs = self.struct_group.get(group, set())
         possible_structs.add(origin_struct)
         res_list = []
         for possible_s in possible_structs:

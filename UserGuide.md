@@ -32,7 +32,7 @@ Enumerator
 ----
 Enumerator (reseg_pcfg_guesser) requires a trained model, a maximal guess number, and a file to save enumerated guesses.
 
-The enumerating phase enumerate 10,000,000 guesses per second.
+The enumerating phase enumerate about 4,000,000 guesses per second.
 
 ```shell
 reseg_pcfg_guesser -r {trained model} -n 10000000000 -f {filename of enumerated guesses}
