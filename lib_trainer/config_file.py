@@ -339,7 +339,7 @@ def create_config_file(program_info, file_input, pcfg_parser):
     
     add_context_sensitive(config)
     
-    add_years(config)
+    # add_years(config)
     
     add_capitalization(config,create_filename_list(pcfg_parser.count_alpha_masks))
     

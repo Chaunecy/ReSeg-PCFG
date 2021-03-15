@@ -110,7 +110,6 @@ def save_pcfg_data(base_directory, pcfg_parser, encoding, save_sensitive):
     #
 
     folder = os.path.join(base_directory, "Keyboard")
-
     if not save_indexed_counters(folder, pcfg_parser.count_keyboard, encoding):
         return False
 
@@ -148,12 +147,6 @@ def save_pcfg_data(base_directory, pcfg_parser, encoding, save_sensitive):
 
     ## Save year data
     #
-    folder = os.path.join(base_directory, "Years")
-
-    year_grouping = {'1': pcfg_parser.count_years}
-
-    if not save_indexed_counters(folder, year_grouping, encoding):
-        return False
 
     ## Save context sensitive data
     #

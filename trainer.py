@@ -563,33 +563,33 @@ def main():
         return
 
     # Print statisticts to the screen
-    split_line = "-------------------------------------------------"
-    print()
-    print(split_line)
-    print("Top 5 e-mail providers")
-    print(split_line)
-    print()
-    top5 = pcfg_parser.count_email_providers.most_common(5)
-    for item in top5:
-        print(item[0] + " : " + str(item[1]))
+    # split_line = "-------------------------------------------------"
+    # print()
+    # print(split_line)
+    # print("Top 5 e-mail providers")
+    # print(split_line)
+    # print()
+    # top5 = pcfg_parser.count_email_providers.most_common(5)
+    # for item in top5:
+    #     print(item[0] + " : " + str(item[1]))
+    #
+    # print()
+    # print(split_line)
+    # print("Top 5 URL domains")
+    # print(split_line)
+    # print()
+    # top5 = pcfg_parser.count_website_hosts.most_common(5)
+    # for item in top5:
+    #     print(item[0] + " : " + str(item[1]))
 
-    print()
-    print(split_line)
-    print("Top 5 URL domains")
-    print(split_line)
-    print()
-    top5 = pcfg_parser.count_website_hosts.most_common(5)
-    for item in top5:
-        print(item[0] + " : " + str(item[1]))
-
-    print()
-    print("-------------------------------------------------")
-    print("Top 10 Years found")
-    print("-------------------------------------------------")
-    print()
-    top10 = pcfg_parser.count_years.most_common(10)
-    for item in top10:
-        print(item[0] + " : " + str(item[1]))
+    # print()
+    # print("-------------------------------------------------")
+    # print("Top 10 Years found")
+    # print("-------------------------------------------------")
+    # print()
+    # top10 = pcfg_parser.count_years.most_common(10)
+    # for item in top10:
+    #     print(item[0] + " : " + str(item[1]))
 
 
 if __name__ == "__main__":

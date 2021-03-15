@@ -35,10 +35,10 @@ def make_directories_from_list(directory_listing):
             make_sure_path_exists(path)
     except OSError:
         print("Error creating the directories to save the results")
-        print(str(error))
+        # print(str(error))
         return False
     return True
-    
+
 
 ## Creates all the folders for saving a pcfg rule to disk
 #
@@ -49,25 +49,23 @@ def make_directories_from_list(directory_listing):
 #     False: If an error occured
 #
 def create_rule_folders(base_directory):
-
     # Set up the list of all the directories to create
     directory_listing = [base_directory]
-    
+
     # Non-PCFG related directories
-    directory_listing.append(os.path.join(base_directory,"Masks"))
-    directory_listing.append(os.path.join(base_directory,"Prince"))
-    
+    directory_listing.append(os.path.join(base_directory, "Masks"))
+    directory_listing.append(os.path.join(base_directory, "Prince"))
+
     # PCFG replacements directories
-    directory_listing.append(os.path.join(base_directory,"Grammar"))
-    directory_listing.append(os.path.join(base_directory,"Alpha"))
-    directory_listing.append(os.path.join(base_directory,"Capitalization"))
-    directory_listing.append(os.path.join(base_directory,"Prince"))
-    directory_listing.append(os.path.join(base_directory,"Digits"))
-    directory_listing.append(os.path.join(base_directory,"Years"))
-    directory_listing.append(os.path.join(base_directory,"Other"))
-    directory_listing.append(os.path.join(base_directory,"Context"))
-    directory_listing.append(os.path.join(base_directory,"Keyboard"))
-    directory_listing.append(os.path.join(base_directory,"Websites"))
-    directory_listing.append(os.path.join(base_directory,"Emails"))
-    
+    directory_listing.append(os.path.join(base_directory, "Grammar"))
+    directory_listing.append(os.path.join(base_directory, "Alpha"))
+    directory_listing.append(os.path.join(base_directory, "Capitalization"))
+    directory_listing.append(os.path.join(base_directory, "Prince"))
+    directory_listing.append(os.path.join(base_directory, "Digits"))
+    directory_listing.append(os.path.join(base_directory, "Other"))
+    directory_listing.append(os.path.join(base_directory, "Context"))
+    directory_listing.append(os.path.join(base_directory, "Keyboard"))
+    directory_listing.append(os.path.join(base_directory, "Websites"))
+    directory_listing.append(os.path.join(base_directory, "Emails"))
+
     return make_directories_from_list(directory_listing)
