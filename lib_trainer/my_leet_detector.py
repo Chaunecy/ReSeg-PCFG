@@ -9,7 +9,6 @@ import traceback
 import itertools
 
 from .speedup import load_l33t_ign, load_l33t_found
-from .trainer_file_input import TrainerFileInput
 
 """
 The principle of L33t detector is as follows:
@@ -71,15 +70,12 @@ def get_ado(word: str):
 # this is a hack
 re_invalid = re.compile(
     r"^("
-    r"[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}[a-z]{1,3}"  # except (S or D) + L
-    r"|[0-9]+[a-z]{1,2}|[a-z]{1,2}[0-9]+"  # remove m150, 
-    r"|[a-z]{1,3}[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]{1,3}"  # except L + (S or D)
-    r"|[02356789@]{1,2}[a-z]+"  # except 5scott
-    r"|[a-z0-9]4(ever|life)"  # except a4ever, b4ever
-    r"|1[a-z]{1,4}[^u]"  # except 1hateu, 1loveu
-    r"|1il(ov|uv).+"  # except 1iloveyou
-    r"|[a-z]{3,}[0-9$]+"
-    r"|(000)?we?bh(o?st)?)$")
+    r".{1,3}"
+    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+[a-z]+"  # except (S or D) + L
+    r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+"  # except L + (S or D)
+    r"|[il|]{3,}."  # except il|a, il|b
+    r"|[a-z0-9]{1,2}4(ever|life)"  # except a4ever, b4ever
+    r")$")
 
 # ignore words in this set
 ignore_set = load_l33t_ign()
@@ -300,15 +296,18 @@ class AsciiL33tDetector:
         unleeted_list = self.unleet(word)
         raw_leets = []
         for unleeted in unleeted_list:
-            unleeted = "".join(unleeted)
+            # unleeted = "".join(unleeted)
+            if not "".join(unleeted).isalpha():
+                continue
             for i in range(0, len(unleeted)):
-                for j in range(len(unleeted), i + self.__min_l33ts, -1):
-                    substr = unleeted[i:j]
+                for j in range(len(unleeted), i + 1, -1):
+                    substr = "".join(unleeted[i:j])
+                    raw_word = word[i:j]
+                    if len(substr) < self.__min_l33ts or invalid(raw_word):
+                        break
                     count = self.multi_word_detector.get_count(substr)
                     if count >= self.multi_word_detector.threshold:
-                        if invalid(substr):
-                            break
-                        raw_leets.append(substr)
+                        raw_leets.append(raw_word)
                         # return True, unleeted
                 # valid.append((unleeted, count))
         return len(raw_leets) > 0, raw_leets
@@ -348,10 +347,11 @@ class AsciiL33tDetector:
         """
         if encoding.lower() != 'ascii':
             raise Exception("l33t detector can be used in ASCII-encoded passwords")
-        file_input = TrainerFileInput(training_set, encoding)
+        file_input = open(training_set, encoding=encoding)
         num_parsed_so_far = 0
         try:
-            password = file_input.read_password()
+            password = file_input.readline()
+            password = password.strip("\r\n")
             while password:
                 # Print status indicator if needed
                 num_parsed_so_far += 1
@@ -360,7 +360,8 @@ class AsciiL33tDetector:
                 # pcfg_parser.parse(password)
                 self.detect_l33t(password)
                 # Get the next password
-                password = file_input.read_password()
+                password = file_input.readline()
+                password = password.strip("\r\n")
 
         except Exception as msg:
             traceback.print_exc(file=sys.stdout)

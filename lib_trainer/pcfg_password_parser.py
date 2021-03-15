@@ -16,9 +16,9 @@ import sys
 from .base_structure import base_structure_creation
 # Local imports
 from .my_context_detection import detect_context_sections
+from .my_kbd_plus import KeyboardDetection, AmericanKeyboard
 from .my_leet_detector import AsciiL33tDetector
 from .prince_metrics import prince_evaluation
-from .year_detection import year_detection
 
 re_tag = re.compile(r"([ADOKYX]\d+)")
 
@@ -80,7 +80,7 @@ class PCFGPasswordParser:
 
         # Initialize Leet Speak Detector
         self.leet_detector = AsciiL33tDetector(self.multiword_detector)
-
+        self.kbd = KeyboardDetection(AmericanKeyboard())
         # Used for debugging/statistics
         #
         # These numbers won't add up to total passwords parsed since
@@ -127,10 +127,11 @@ class PCFGPasswordParser:
         need_restore = True
         # Since keyboard combos can look like many other parsings, filter them
         # out first
-        section_list = [(password, None)]
+        # section_list = [(password, None)]
+        kbd_list, section_list = self.kbd.parse_sections(password)
         # section_list, found_walks = detect_keyboard_walk(password)
 
-        # self._update_counter_len_indexed(self.count_keyboard, found_walks)
+        update_counter_len_indexed(self.count_keyboard, kbd_list)
 
         # Identify e-mail and web sites before doing other string parsing
         # this is because they can have digits + special characters
@@ -154,10 +155,10 @@ class PCFGPasswordParser:
         # Identify years in the dataset. This is done before other parsing
         # because parsing after this may classify years as another type
 
-        found_years = year_detection(section_list)
+        # found_years = year_detection(section_list)
 
-        for year in found_years:
-            self.count_years[year] += 1
+        # for year in found_years:
+        #     self.count_years[year] += 1
 
         # Need to classify context sensitive replacements before doing the
         # straight type classifications, (alpha, digit, etc), but want to doing

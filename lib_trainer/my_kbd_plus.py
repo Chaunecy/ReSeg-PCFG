@@ -11,6 +11,17 @@ def single(string: str) -> bool:
     return string.isdigit() or string.isalpha() or all([not c.isdigit() and not c.isalpha() for c in string])
 
 
+def rm_same_seq(string: str) -> str:
+    s = []
+    for c in string:
+        if len(s) == 0:
+            s.append(c)
+        elif s[-1] != c:
+            s.append(c)
+    return "".join(s)
+    pass
+
+
 def split_ado(string):
     """
     a replacement for re
@@ -259,16 +270,18 @@ class KeyboardDetection:
         idx = 0
         len_string = len(string)
         prev_kbd_idx = 0
+        idx_list = []
         while idx < len_string:
             c = string[idx]
             cur_x, cur_y = self.__kbd.get_pos(c)
-            adjacent = abs(cur_x - prev_x) + abs(cur_y - prev_y) <= 1
+            adjacent = abs(cur_x - prev_x) <= 1 and abs(cur_y - prev_y) <= 1
             prev_x, prev_y = cur_x, cur_y
             if adjacent:
                 seq += c
             else:
                 if len(seq) >= min_kbd_len and not single(seq):
                     kbd_list.append(seq)
+                    idx_list.append(idx - len(seq))
                     if len(seq) < idx - prev_kbd_idx:
                         sec_list.append((string[prev_kbd_idx:idx - len(seq)], None))
                     sec_list.append((seq, f"K{len(seq)}"))
@@ -277,51 +290,67 @@ class KeyboardDetection:
             idx += 1
         if len(seq) >= min_kbd_len and not single(seq):
             kbd_list.append(seq)
+            idx_list.append(idx - len(seq))
             if len(seq) < idx - prev_kbd_idx:
                 sec_list.append((string[prev_kbd_idx:idx - len(seq)], None))
             sec_list.append((seq, f"K{len(seq)}"))
         else:
             sec_list.append((string[prev_kbd_idx:idx], None))
-        return kbd_list
+        return kbd_list, idx_list
 
     def parallel2(self, string: str, min_kbd_len: int = 4):
         if len(string) < min_kbd_len or single(string):
-            return []
+            return [], []
         all_kbd = []
+        all_idx = []
+        next_i = 0
         for i in range(0, len(string) - min_kbd_len):
+            if i < next_i:
+                continue
             for j in range(len(string), i + min_kbd_len - 1, -1):
                 tmp_s = string[i:j]
                 if single(tmp_s):
                     break
                 track, (row_cnt, col_cnt) = self.__kbd.get_tight_track(tmp_s)
                 if len(set(tmp_s)) == row_cnt * col_cnt and min(row_cnt, col_cnt) > 1:
-                    # print(f"r: {row_cnt}, c: {col_cnt}, s: {tmp_s}")
                     all_kbd.append(tmp_s)
+                    all_idx.append(i)
+                    next_i = j
+                    break
+                else:
+                    next_i = i + 1
                 pass
             pass
-        return all_kbd
+        return all_kbd, all_idx
         pass
 
     def vertical(self, string: str, min_kbd_len: int = 4):
         if len(string) < min_kbd_len or single(string):
-            return []
+            return [], []
         all_kbd = []
+        all_idx = []
+        next_i = 0
         for i in range(0, len(string) - min_kbd_len):
+            if i < next_i:
+                continue
             for j in range(len(string), i + min_kbd_len - 1, -1):
                 tmp_s = string[i:j]
-                n_letter, n_other = 0, 0
-                for c in tmp_s:
-                    if c.isalpha():
-                        n_letter += 1
-                    else:
-                        n_other += 1
-                k = split_ado(tmp_s)
-                if len(k) < len(tmp_s):
-                    continue
-                if abs(n_letter - n_other) > 1:
-                    continue
+                if len(tmp_s) < min_kbd_len:
+                    break
                 if single(tmp_s):
                     break
+                alphas = set()
+                others = set()
+                for c in tmp_s:
+                    if c.isalpha():
+                        alphas.add(c)
+                    else:
+                        others.add(c)
+                k = split_ado(tmp_s)
+                if abs(len(alphas) - len(others)) > 1:
+                    continue
+                if len(k) < len(tmp_s):
+                    continue
                 track, _ = self.__kbd.get_tight_track(tmp_s)
                 col_no_x00 = True
                 row_no_x00 = True
@@ -347,9 +376,14 @@ class KeyboardDetection:
 
                 if col_no_x00 and row_no_x00:
                     all_kbd.append(tmp_s)
+                    all_idx.append(i)
+                    next_i = j
+                    break
+                else:
+                    next_i = i + 1
                 pass
             pass
-        return all_kbd
+        return all_kbd, all_idx
 
     def extract_kbd(self, string: str):
         """
@@ -357,18 +391,40 @@ class KeyboardDetection:
         :param string:
         :return:
         """
-        fast_fail = [], [(0, len(string), False)]
-        parts = split_ado(string)
         # the pwd has two segments, or each segment has length 3+
-        if len(parts) <= 2 or all([len(p) >= 3 for _, p in parts]):
-            return fast_fail
-
-        kbd_list, sec_list = self.sequence(string)
-        for sec, tag in sec_list:
-            pass
+        kbd_list = []
         idx_list = []
-
-        return kbd_list, idx_list
+        seq, idx4seq = self.sequence(string)
+        # total += 1
+        if len(seq) > 0:
+            kbd_list = seq
+            idx_list = idx4seq
+            # sequence += 1
+            pass
+        else:
+            par, idx4par = self.parallel2(string)
+            if len(par) > 0:
+                kbd_list = par
+                idx_list = idx4par
+                # parallel += 1
+                pass
+            else:
+                ver, idx4ver = self.vertical(string)
+                if len(ver) > 0:
+                    kbd_list = ver
+                    idx_list = idx4ver
+                    pass
+        renewed = []
+        prev = 0
+        for i in range(len(idx_list)):
+            idx_of_i = idx_list[i]
+            if idx_of_i > prev:
+                renewed.append((0, idx_of_i, False))
+            renewed.append((idx_of_i, len(kbd_list[i]), True))
+            prev = idx_of_i + len(kbd_list[i])
+        if prev < len(string):
+            renewed.append((prev, len(string), False))
+        return kbd_list, renewed
 
     def parse_sections(self, string: str, tag4kbd: str = "K") -> Tuple[List[str], List[Tuple[str, Union[str, None]]]]:
         """
@@ -397,7 +453,7 @@ def main():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
     kbd_dict = defaultdict(lambda: defaultdict(int))
-    with open("/home/cw/Documents/Experiments/SegLab/Corpora/csdn-src.txt") as fd:
+    with open("/home/cw/Documents/Experiments/SegLab/Corpora632/dodonew-src.txt") as fd:
         for line in fd:
             line = line.strip("\r\n")
             kbd_list, section_list = kd.parse_sections(line)
@@ -415,10 +471,9 @@ def main():
 def test():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    for pwd in ["1q2a3z", 'a5201314']:
-        print(kd.sequence(pwd))
-        print(kd.parallel2(pwd))
-        print(kd.vertical(pwd))
+    for pwd in ["helloo90612", "1q2a3zz88i", '1a3d5g66y']:
+        print(kd.parse_sections(pwd))
+        pass
     pass
 
 
@@ -441,16 +496,13 @@ def wrapper():
             total += 1
             if len(seq) > 0:
                 sequence += 1
-                # print('seq', seq)
             else:
                 par = kd.parallel2(line)
                 if len(par) > 0:
                     parallel += 1
-                    # print('par', par)
                 else:
                     ver = kd.vertical(line)
                     if len(ver) > 0:
-                        # print('ver', ver)
                         vertical += 1
             pass
         total_kbd = sequence + parallel + vertical
@@ -464,4 +516,4 @@ def wrapper():
 
 
 if __name__ == '__main__':
-    wrapper()
+    test()
