@@ -452,7 +452,7 @@ class KeyboardDetection:
 def test():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    for pwd in ["qa2ws", "1qa2ws", "d3f4k", "abcd3f4", "helloo90612", "1q2a3zz88i", '1a3d5g66y']:
+    for pwd in ["qa2ws", "1qa2ws3ed", "d3f4k", "abcd3f4", "helloo90612", "1q2a3zz88i", '1a3d5g66y']:
         print(kd.parse_sections(pwd))
         pass
     pass

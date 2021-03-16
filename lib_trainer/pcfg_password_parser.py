@@ -123,13 +123,15 @@ class PCFGPasswordParser:
     #    True: If everything worked correctly
     #    False: If there was a problem parsing the password
     #
-    def parse(self, password):
+    def parse(self, password: str):
         need_restore = True
         # Since keyboard combos can look like many other parsings, filter them
         # out first
         # section_list = [(password, None)]
         kbd_list, section_list = self.kbd.parse_sections(password)
         # section_list, found_walks = detect_keyboard_walk(password)
+        if password.startswith("1qa2ws"):
+            print(password, section_list)
 
         update_counter_len_indexed(self.count_keyboard, kbd_list)
 
@@ -170,11 +172,15 @@ class PCFGPasswordParser:
             need_restore = False
         for cs_string in found_contexts:
             self.count_context_sensitive[cs_string] += 1
+        if password.startswith("1qa2ws"):
+            print(password, section_list)
 
         section_list, leet_list, mask_list = self.leet_detector.parse_sections(section_list)
         if len(leet_list) > 0:
             need_restore = False
         for leet in leet_list:
+            if leet == 'qa2ws':
+                print(password, section_list)
             self.leet_detector.l33t_map[leet] += 1
         update_counter_len_indexed(self.count_alpha, leet_list)
         update_counter_len_indexed(self.count_alpha_masks, mask_list)

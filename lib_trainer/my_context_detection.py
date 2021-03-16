@@ -90,6 +90,8 @@ def detect_context_sections(sections_list):
     parsed_sections = []
     contexts = []
     for section, tag in sections_list:
+        if tag is not None:
+            parsed_sections.append((section, tag))
         if len(section) < 2:
             parsed_sections.append((section, None))
         else:

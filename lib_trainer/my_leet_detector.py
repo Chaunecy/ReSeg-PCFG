@@ -73,7 +73,7 @@ re_invalid = re.compile(
     r".{1,3}"
     r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+[a-z]+"  # except (S or D) + L
     r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+"  # except L + (S or D)
-    r"|[il|]{3,}."  # except il|a, il|b
+    r"|.*[i1l|]{3,}.*"  # except il|a, il|b
     r"|[a-z0-9]{1,2}4(ever|life)"  # except a4ever, b4ever
     r")$")
 
@@ -299,8 +299,11 @@ class AsciiL33tDetector:
             # unleeted = "".join(unleeted)
             if not "".join(unleeted).isalpha():
                 continue
+            next_i = 0
             for i in range(0, len(unleeted)):
-                for j in range(len(unleeted), i + 1, -1):
+                if i < next_i:
+                    continue
+                for j in range(len(unleeted), i + self.__min_l33ts - 1, -1):
                     substr = "".join(unleeted[i:j])
                     raw_word = word[i:j]
                     if len(substr) < self.__min_l33ts or invalid(raw_word):
@@ -308,6 +311,10 @@ class AsciiL33tDetector:
                     count = self.multi_word_detector.get_count(substr)
                     if count >= self.multi_word_detector.threshold:
                         raw_leets.append(raw_word)
+                        next_i = j
+                        break
+                    else:
+                        next_i = i + 1
                         # return True, unleeted
                 # valid.append((unleeted, count))
         return len(raw_leets) > 0, raw_leets
