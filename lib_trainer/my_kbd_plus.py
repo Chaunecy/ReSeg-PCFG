@@ -304,7 +304,7 @@ class KeyboardDetection:
         all_kbd = []
         all_idx = []
         next_i = 0
-        for i in range(0, len(string) - min_kbd_len):
+        for i in range(0, len(string) - min_kbd_len + 1):
             if i < next_i:
                 continue
             for j in range(len(string), i + min_kbd_len - 1, -1):
@@ -312,7 +312,7 @@ class KeyboardDetection:
                 if single(tmp_s):
                     break
                 track, (row_cnt, col_cnt) = self.__kbd.get_tight_track(tmp_s)
-                if len(set(tmp_s)) == row_cnt * col_cnt and min(row_cnt, col_cnt) > 1:
+                if -1 <= len(set(tmp_s)) - row_cnt * col_cnt <= 0 and min(row_cnt, col_cnt) > 1:
                     all_kbd.append(tmp_s)
                     all_idx.append(i)
                     next_i = j
@@ -449,69 +449,12 @@ class KeyboardDetection:
     pass
 
 
-def main():
-    am = AmericanKeyboard()
-    kd = KeyboardDetection(am)
-    kbd_dict = defaultdict(lambda: defaultdict(int))
-    with open("/home/cw/Documents/Experiments/SegLab/Corpora632/dodonew-src.txt") as fd:
-        for line in fd:
-            line = line.strip("\r\n")
-            kbd_list, section_list = kd.parse_sections(line)
-            for kbd in kbd_list:
-                kbd_dict[len(kbd)][kbd] += 1
-    save = open("save.o", "w")
-    for _len, len_kbd_dict in kbd_dict.items():
-        for kbd, cnt in len_kbd_dict.items():
-            save.write(f"{kbd}\t{cnt}\n")
-
-    save.close()
-    # t = am.get_track("hello")
-
-
 def test():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    for pwd in ["helloo90612", "1q2a3zz88i", '1a3d5g66y']:
+    for pwd in ["qa2ws", "1qa2ws", "d3f4k", "abcd3f4", "helloo90612", "1q2a3zz88i", '1a3d5g66y']:
         print(kd.parse_sections(pwd))
         pass
-    pass
-
-
-def wrapper():
-    am = AmericanKeyboard()
-    kd = KeyboardDetection(am)
-    for corpus in ['rockyou', 'webhost', 'youku']:
-        sequence = 0
-        parallel = 0
-        vertical = 0
-        total = 0
-        fd = open(f"/home/cw/Documents/Experiments/SegLab/Corpora/{corpus}-all.txt")
-        for line in fd:
-            if total % 10000000 == 0:
-                print(total, file=sys.stderr)
-            # if total > 10000:
-            #     break
-            line = line.strip("\r\n")
-            seq = kd.sequence(line)
-            total += 1
-            if len(seq) > 0:
-                sequence += 1
-            else:
-                par = kd.parallel2(line)
-                if len(par) > 0:
-                    parallel += 1
-                else:
-                    ver = kd.vertical(line)
-                    if len(ver) > 0:
-                        vertical += 1
-            pass
-        total_kbd = sequence + parallel + vertical
-        print("")
-        print(f"corpus: {corpus}")
-        print(f"sequence: {sequence}, %: {sequence / total_kbd * 100},\n"
-              f"parallel: {parallel}, %: {parallel / total_kbd * 100},\n"
-              f"vertical: {vertical}, %: {vertical / total_kbd * 100}")
-
     pass
 
 
