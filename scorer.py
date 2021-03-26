@@ -66,6 +66,43 @@ def minus_log_prob2rank(minus_log_probs, positions, minus_log_prob):
     pass
 
 
+def split_ado_struct(string: str) -> List[Tuple[str, str, int]]:
+    """
+    a replacement for re
+
+    give me an arbitrary password and I'll give you a
+    list of (section, tag)
+
+    For example, give me hello123world,
+    I'll give you [(hello, A5), (123, D3), (world, A5)]
+
+    Note that uppercase letters will be treated as lowercase
+    letters.
+    :param string: any string
+    :return: List[(section, tag)]
+    """
+    prev_chr_type = None
+    acc = ""
+    parts = []
+    for c in string:
+        if c.isalpha():
+            cur_chr_type = "A"
+        elif c.isdigit():
+            cur_chr_type = "D"
+        else:
+            cur_chr_type = "O"
+        if prev_chr_type is None:
+            acc = c
+        elif prev_chr_type == cur_chr_type:
+            acc += c
+        else:
+            parts.append((acc, prev_chr_type, len(acc)))
+            acc = c
+        prev_chr_type = cur_chr_type
+    parts.append((acc, prev_chr_type, len(acc)))
+    return parts
+
+
 class MyScorer:
     def __init__(self, rule: str, limit=0):
         # Information for using this grammar
@@ -355,6 +392,9 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, save_seg: Text
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
         if save_seg is not None:
+            if struct == "":
+                alternative = split_ado_struct(pwd)
+                struct = "".join([f"{_tag}{_len}" for _, _tag, _len in alternative])
             save_seg.write(f"{pwd}\t{struct}\n")
     save2.flush()
     save2.close()
