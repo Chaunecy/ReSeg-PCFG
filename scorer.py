@@ -99,6 +99,7 @@ class MyScorer:
         self.__terminal_re = re.compile(r"([ADKOXY]\d+)")
         print("Done!", file=sys.stderr)
         base_struct_tree = {}
+        self.__STRUCT_END_SYMBOL = ("END", 0)
         for base_struct in self.count_base_structures:
             terminals = self.__terminal_re.findall(base_struct)
             tree = base_struct_tree
@@ -109,7 +110,7 @@ class MyScorer:
                 if n_terminal not in tree:
                     tree[n_terminal] = {}
                 tree = tree[n_terminal]
-            tree[("END", 0)] = self.count_base_structures.get(base_struct)
+            tree[self.__STRUCT_END_SYMBOL] = base_struct, self.count_base_structures.get(base_struct)
         self.base_struct_tree = base_struct_tree
         all_terminals = {}
         for counter, tag in [(self.count_alpha, "A"), (self.count_alpha_masks, "C"), (self.count_digits, "D"),
@@ -136,12 +137,15 @@ class MyScorer:
         load_grammar4scorer(self, rule_directory=self.rule)
         pass
 
-    def my_calc_prob(self, pwd: str, cap: str, idx: int, root: Dict, acc_prob: float, max_prob: List[float]):
+    def my_calc_prob(self, pwd: str, cap: str, idx: int, root: Dict, acc_prob: float, max_prob: List[float],
+                     max_struct: List[str]):
         if idx == len(pwd):
-            if ("END", 0) in root:
-                final_prob = root[("END", 0)] * acc_prob
+            if self.__STRUCT_END_SYMBOL in root:
+                base_struct, struct_prob = root[self.__STRUCT_END_SYMBOL]
+                final_prob = struct_prob * acc_prob
                 if final_prob > max_prob[0]:
                     max_prob[0] = final_prob
+                    max_struct[0] = base_struct
             return
         for terminal in root:
             tag, _len = terminal
@@ -164,14 +168,15 @@ class MyScorer:
                 part = pwd[idx: end_idx]
                 mul_prob = self.count_years.get(part, .0)
             elif tag == 'X':
-                for addon in [2, 3, 4]:
+                for addon in [2, 3, 4, 5]:
                     if idx + addon > len(pwd):
                         continue
                     part = pwd[idx:idx + addon]
                     mul_prob = self.count_context_sensitive.get(part, .0)
 
                     if mul_prob > sys.float_info.min:
-                        self.my_calc_prob(pwd, cap, idx + addon, root[terminal], acc_prob * mul_prob, max_prob)
+                        self.my_calc_prob(pwd, cap, idx + addon, root[terminal], acc_prob * mul_prob, max_prob,
+                                          max_struct)
                 continue
             elif tag != "END":
                 # D, O, K
@@ -185,7 +190,7 @@ class MyScorer:
                 continue
             if mul_prob > sys.float_info.min:
                 tmp_acc_prob = acc_prob * mul_prob
-                self.my_calc_prob(pwd, cap, end_idx, root[terminal], tmp_acc_prob, max_prob)
+                self.my_calc_prob(pwd, cap, end_idx, root[terminal], tmp_acc_prob, max_prob, max_struct)
             pass
         pass
 
@@ -198,10 +203,24 @@ class MyScorer:
             else:
                 cap += "L"
         max_prob = [sys.float_info.min]
-        self.my_calc_prob(pwd.lower(), cap, 0, self.base_struct_tree, 1.0, max_prob)
+        base_struct = [""]
+        self.my_calc_prob(pwd.lower(), cap, 0, self.base_struct_tree, 1.0, max_prob, base_struct)
         return -log2(max(max_prob[0], self.minimal_prob))
 
-    def calc_minus_log2_prob_from_file(self, passwords: TextIO) -> Dict[Any, Tuple[int, float]]:
+    def minus_log2_prob_with_struct(self, pwd: str) -> Tuple[float, str]:
+        cap = ""
+        for c in pwd:
+            if c.isupper():
+                cap += "U"
+            else:
+                cap += "L"
+        max_prob = [sys.float_info.min]
+        base_struct = [""]
+        self.my_calc_prob(pwd.lower(), cap, 0, self.base_struct_tree, 1.0, max_prob, base_struct)
+        return -log2(max(max_prob[0], self.minimal_prob)), base_struct[0]
+        pass
+
+    def calc_minus_log2_prob_from_file(self, passwords: TextIO) -> Dict[Any, Tuple[int, float, str]]:
         """
         return a dict, whose key is pwd, value is tuple of (appearance, minus_log_prob)
         :param passwords: passwords, do not close it please!
@@ -212,14 +231,15 @@ class MyScorer:
         for pwd in passwords:
             pwd = pwd.strip("\r\n")
             raw_pwd_counter[pwd] += 1
-        pwd_counter = defaultdict(lambda: (0, .0))
+        pwd_counter = defaultdict(lambda: (0, .0, ""))
         total_items = len(raw_pwd_counter)
         print("Calc prob...", file=sys.stderr)
         i = 0
         start = time.time()
         step = 10000
         for pwd, num in raw_pwd_counter.items():
-            pwd_counter[pwd] = (num, self.minus_log2_prob(pwd))
+            ml2p, struct = self.minus_log2_prob_with_struct(pwd)
+            pwd_counter[pwd] = (num, ml2p, struct)
             i += 1
             if i % step == 0:
                 t = time.time()
@@ -309,7 +329,7 @@ def wc_l(file: TextIO):
     return count
 
 
-def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 100000):
+def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, save_seg: TextIO, n: int = 100000):
     print(f"rule: {rule}", file=sys.stderr)
     print(f"target: {target.name}", file=sys.stderr)
     pcfg_scorer = MyScorer(rule=rule)
@@ -319,23 +339,27 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, n: int = 10000
     minus_log_prob_list, ranks = gen_rank_from_minus_log_prob(rand_pairs)
     del rand_pairs
     # scoring passwords in test set
-    scored_pwd_list = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
+    scored_pwd_list: Dict[Any, Tuple[int, float, str]] = pcfg_scorer.calc_minus_log2_prob_from_file(passwords=target)
     target.close()
     del pcfg_scorer
     cracked = 0
     prev_rank = 0
-    total = sum([n for n, _ in scored_pwd_list.values()])
+    total = sum([n for n, _, _ in scored_pwd_list.values()])
     # estimating
     print("Estimating...", file=sys.stderr)
     for pwd, info in sorted(scored_pwd_list.items(), key=lambda x: x[1][1], reverse=False):
-        num, mlp = info
+        num, mlp, struct = info
         # rank should be an integer, and larger than previous one
         rank = ceil(max(minus_log_prob2rank(minus_log_prob_list, ranks, mlp), prev_rank + 1))
         prev_rank = rank
         cracked += num
         save2.write(f"{pwd}\t{mlp:.8f}\t{num}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
+        if save_seg is not None:
+            save_seg.write(f"{pwd}\t{struct}\n")
     save2.flush()
     save2.close()
+    save_seg.flush()
+    save_seg.close()
     del minus_log_prob_list
     del ranks
     del scored_pwd_list
@@ -350,9 +374,11 @@ def main():
                      help="samples generated to execute Monte Carlo Simulation, default=100000")
     cli.add_argument("-s", "--save", required=True, dest="save2", type=argparse.FileType("w"),
                      help="save the results to specified file")
+    cli.add_argument("--segments", required=False, dest="save_segments", type=argparse.FileType('w'), default=None,
+                     help="the composition of segments for each password")
     args = cli.parse_args()
     try:
-        monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2, n=args.n)
+        monte_carlo_wrapper(args.rule, target=args.target, save2=args.save2, n=args.n, save_seg=args.save_segments)
     except KeyboardInterrupt:
         print("You canceled the progress.\n"
               "Exited", file=sys.stderr)
