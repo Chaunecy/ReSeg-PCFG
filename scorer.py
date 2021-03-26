@@ -145,7 +145,7 @@ class MyScorer:
                 if n_terminal not in tree:
                     tree[n_terminal] = {}
                 tree = tree[n_terminal]
-            tree[self.__STRUCT_END_SYMBOL] = self.count_base_structures.get(base_struct)
+            tree[self.__STRUCT_END_SYMBOL] = base_struct, self.count_base_structures.get(base_struct)
         self.base_struct_tree = base_struct_tree
         all_terminals = {}
         for counter, tag in [(self.count_alpha, "A"), (self.count_alpha_masks, "C"), (self.count_digits, "D"),
