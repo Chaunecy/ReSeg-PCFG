@@ -130,7 +130,8 @@ class PCFGPasswordParser:
         # section_list = [(password, None)]
         kbd_list, section_list = self.kbd.parse_sections(password)
         # section_list, found_walks = detect_keyboard_walk(password)
-
+        if len(kbd_list) > 0:
+            need_restore = False
         update_counter_len_indexed(self.count_keyboard, kbd_list)
 
         # Identify e-mail and web sites before doing other string parsing
