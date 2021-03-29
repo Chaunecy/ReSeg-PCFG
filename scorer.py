@@ -398,8 +398,9 @@ def monte_carlo_wrapper(rule: str, target: TextIO, save2: TextIO, save_seg: Text
             save_seg.write(f"{pwd}\t{struct}\n")
     save2.flush()
     save2.close()
-    save_seg.flush()
-    save_seg.close()
+    if save_seg is not None:
+        save_seg.flush()
+        save_seg.close()
     del minus_log_prob_list
     del ranks
     del scored_pwd_list
