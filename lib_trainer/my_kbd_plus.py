@@ -4,7 +4,7 @@ What's Keyboard Pattern?
 import abc
 import sys
 from collections import defaultdict
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, TextIO
 
 
 def single(string: str) -> bool:
@@ -452,11 +452,49 @@ class KeyboardDetection:
 def test():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    for pwd in ["qa2ws", "1qa2ws3ed", "d3f4k", "abcd3f4", "helloo90612", "1q2a3zz88i", '1a3d5g66y']:
+    for pwd in ['hello', "qa2ws", "1qa2ws3ed", "d3f4k", "abcd3f4", "helloo90612", "1q2a3zz88i", '1a3d5g66y']:
         print(kd.parse_sections(pwd))
         pass
     pass
 
 
+def wrapper(corpora: List[TextIO]):
+    am = AmericanKeyboard()
+    kd = KeyboardDetection(am)
+    for corpus in corpora:
+        sequence = 0
+        parallel = 0
+        vertical = 0
+        total = 0
+        fd = corpus
+        for line in fd:
+            if total % 10000 == 0:
+                print(total, file=sys.stderr)
+            line = line.strip("\r\n")
+            seq, _ = kd.sequence(line)
+            total += 1
+            if len(seq) > 0:
+                sequence += 1
+                # print('seq', seq)
+            else:
+                par, _ = kd.parallel2(line)
+                if len(par) > 0:
+                    parallel += 1
+                    # print('par', par)
+                else:
+                    ver, _ = kd.vertical(line)
+                    if len(ver) > 0:
+                        # print('ver', ver)
+                        vertical += 1
+            pass
+        total_kbd = sequence + parallel + vertical
+        print("")
+        print(f"corpus: {corpus.name}")
+        print(f"sequence: {sequence}, %: {sequence / total_kbd * 100},\n"
+              f"parallel: {parallel}, %: {parallel / total_kbd * 100},\n"
+              f"vertical: {vertical}, %: {vertical / total_kbd * 100}")
+
+
 if __name__ == '__main__':
-    test()
+    # wrapper()
+    pass

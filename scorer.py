@@ -1,5 +1,6 @@
 import argparse
 import bisect
+import os
 import random
 import re
 import time
@@ -169,6 +170,20 @@ class MyScorer:
         self.__extend_keyboard = {k: extend_dict(v) for k, v in self.count_keyboard.items()}
         self.__extend_other = {k: extend_dict(v) for k, v in self.count_other.items()}
         self.__extend_digits = {k: extend_dict(v) for k, v in self.count_digits.items()}
+        mixture = {}
+        try:
+            with open(os.path.join(rule, "Mixing", "all.txt")) as fd_mix:
+                for line in fd_mix:
+                    items = line.strip("\r\n").split("\t")
+                    proto = items[0]
+                    origin = items[1]
+                    mixture[origin] = proto
+                pass
+        except Exception as e:
+            print(e)
+            print(f"Failed to load mixture patterns! Skipped this step!")
+            pass
+        self.mixture = mixture
 
     def __load_grammars(self):
         load_grammar4scorer(self, rule_directory=self.rule)
@@ -233,6 +248,14 @@ class MyScorer:
 
     def minus_log2_prob(self, pwd: str) -> float:
         # prob = self.calc_prob(pwd)
+        # To evaluate guess number of a password with mixture patterns, we
+        # regard the password as its prototype, i.e., restored password without mixture patterns
+        # e.g., if the prototype of the given pwd p1a1s1s1 is pass1111,
+        # we calculate the probability of pass1111
+        # Note that the enumerating phase should be the same as the simulating phase.
+        # However, we adjust the generation of passwords with mixture patterns by generating
+        # them first to avoid time-consuming if-statement in the code.
+        pwd = self.mixture.get(pwd, pwd)
         cap = ""
         for c in pwd:
             if c.isupper():
@@ -245,6 +268,14 @@ class MyScorer:
         return -log2(max(max_prob[0], self.minimal_prob))
 
     def minus_log2_prob_with_struct(self, pwd: str) -> Tuple[float, str]:
+        # To evaluate guess number of a password with mixture patterns, we
+        # regard the password as its prototype, i.e., restored password without mixture patterns
+        # e.g., if the prototype of the given pwd p1a1s1s1 is pass1111,
+        # we calculate the probability of pass1111
+        # Note that the enumerating phase should be the same as the simulating phase.
+        # However, we adjust the generation of passwords with mixture patterns by generating
+        # them first to avoid time-consuming if-statement in the code.
+        pwd = self.mixture.get(pwd, pwd)
         cap = ""
         for c in pwd:
             if c.isupper():
