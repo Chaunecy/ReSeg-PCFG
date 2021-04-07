@@ -74,7 +74,7 @@ re_invalid = re.compile(
     r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+[a-z]+"  # except (S or D) + L
     r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+"  # except L + (S or D)
     r"|.*[i1l|]{3,}.*"  # except il|a, il|b
-    r"|[a-z0-9]{1,2}4(ever|life)"  # except a4ever, b4ever
+    r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva)"  # except a4ever, b4ever
     r")$")
 
 # ignore words in this set
@@ -116,23 +116,14 @@ def invalid(word: str):
         return True
     counter = collections.Counter(lower)
     # 5i5i5i5i, o00oo0o
-    if len(counter) < 3 or max(counter.values()) >= len(word) / 2:
-        return True
-    # li1li1li1, o0po0po0p
-    if len(counter) == 3 and len(word) >= 6 and max(counter.values()) >= len(word) / 3:
-        return True
-    # xxx!
-    if lower[:-1].isalpha() and lower[-1:] == '!':
-        return True
-    # xxx4ever
-    if 9 > wlen > 5 and lower[-5:] == '4ever' and (lower[:-5].isalpha() or lower[:-5].isdigit()):
+    if 2 == len(counter) or 2 <= len(word) // len(counter) <= min(counter.values()):
         return True
     return re_invalid.search(lower)
 
 
 class AsciiL33tDetector:
 
-    def __init__(self, multi_word_detector):
+    def __init__(self, multi_word_detector, min_len: int = 4):
         """
         multi_word detector should be instance of my_multiword_detector.py
         :param multi_word_detector: instance of my_multiword_detector.py
@@ -238,11 +229,12 @@ class AsciiL33tDetector:
         self.max_len_repl = len(max(self.replacements, key=lambda x: len(x)))
         # to speedup query
         self.l33t_map = {}
-        # dict tree, to speedup detection
+        # dictionary tree, to speedup detection
         self.dict_l33ts = {}
-        # max len of l33t
-        self.__min_l33ts = 4
         # min len of l33t
+        self.__min_l33ts = min_len
+        # max len of l33t, the value will be updated
+        # automatically after parsing the training data
         self.__max_l33ts = 8
         # lower string
 
@@ -389,22 +381,23 @@ class AsciiL33tDetector:
             return
         self.__min_l33ts = len(l33ts[-1])
         self.__max_l33ts = len(l33ts[0])
-        for l33t in l33ts:
-            # early return, a hack
-            if len(l33t) < 2 * self.__min_l33ts:
-                break
-            for i in range(self.__min_l33ts, len(l33t) - self.__min_l33ts + 1):
-                left = l33t[:i]
-                right = l33t[i:]
-                """
-                some l33t may be composed of several short l33ts, remove them
-                """
-                if left in self.l33t_map and self.multi_word_detector.get_count(right) >= 5:
-                    del self.l33t_map[l33t]
-                    break
-                if right in self.l33t_map and self.multi_word_detector.get_count(left) >= 5:
-                    del self.l33t_map[l33t]
-                    break
+        # todo: a hack, remove leets composed of several shorter ones
+        # for l33t in l33ts:
+        #     # early return, a hack
+        #     if len(l33t) < 2 * self.__min_l33ts:
+        #         break
+        #     for i in range(self.__min_l33ts, len(l33t) - self.__min_l33ts + 1):
+        #         left = l33t[:i]
+        #         right = l33t[i:]
+        #         """
+        #         some l33t may be composed of several short l33ts, remove them
+        #         """
+        #         if left in self.l33t_map and self.multi_word_detector.get_count(right) >= 5:
+        #             del self.l33t_map[l33t]
+        #             break
+        #         if right in self.l33t_map and self.multi_word_detector.get_count(left) >= 5:
+        #             del self.l33t_map[l33t]
+        #             break
         for l33t in self.l33t_map:
             dict_l33t = self.dict_l33ts
             for c in l33t:
