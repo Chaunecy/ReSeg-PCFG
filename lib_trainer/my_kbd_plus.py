@@ -405,7 +405,6 @@ class KeyboardDetection:
             kbd_list = seq
             idx_list = idx4seq
             # sequence += 1
-            print(1)
             pass
         else:
             par, idx4par = self.parallel2(string)
@@ -413,7 +412,6 @@ class KeyboardDetection:
                 kbd_list = par
                 idx_list = idx4par
                 # parallel += 1
-                print(2)
                 pass
             else:
                 ver, idx4ver = self.vertical(string)
