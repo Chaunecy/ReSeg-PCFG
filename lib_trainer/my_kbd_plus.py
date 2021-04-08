@@ -2,9 +2,9 @@
 What's Keyboard Pattern?
 """
 import abc
-import sys
-from collections import defaultdict
 from typing import List, Tuple, Dict, Union, TextIO
+
+import sys
 
 
 def single(string: str) -> bool:
@@ -312,7 +312,7 @@ class KeyboardDetection:
                 if single(tmp_s):
                     break
                 track, (row_cnt, col_cnt) = self.__kbd.get_tight_track(tmp_s)
-                if -1 <= len(set(tmp_s)) - row_cnt * col_cnt <= 0 and min(row_cnt, col_cnt) > 1:
+                if len(set(tmp_s)) == row_cnt * col_cnt and min(row_cnt, col_cnt) > 1:
                     all_kbd.append(tmp_s)
                     all_idx.append(i)
                     next_i = j
@@ -365,6 +365,8 @@ class KeyboardDetection:
                 if len(track) > 1:
                     c_idx = -1
                     for row in track:
+                        if len(row) <= 1:
+                            break
                         for idx_c, itm in enumerate(row):
                             if itm != '\x00':
                                 if c_idx < 0:
@@ -373,6 +375,9 @@ class KeyboardDetection:
                                     col_no_x00 = False
                                 break
                         pass
+                else:
+                    col_no_x00 = True
+                    row_no_x00 = True
 
                 if col_no_x00 and row_no_x00:
                     all_kbd.append(tmp_s)
@@ -400,6 +405,7 @@ class KeyboardDetection:
             kbd_list = seq
             idx_list = idx4seq
             # sequence += 1
+            print(1)
             pass
         else:
             par, idx4par = self.parallel2(string)
@@ -407,6 +413,7 @@ class KeyboardDetection:
                 kbd_list = par
                 idx_list = idx4par
                 # parallel += 1
+                print(2)
                 pass
             else:
                 ver, idx4ver = self.vertical(string)
@@ -452,7 +459,7 @@ class KeyboardDetection:
 def test():
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
-    for pwd in ['hello', "qa2ws", "1qa2ws3ed", "d3f4k", "abcd3f4", "helloo90612", "1q2a3zz88i", '1a3d5g66y']:
+    for pwd in []:
         print(kd.parse_sections(pwd))
         pass
     pass
@@ -496,5 +503,5 @@ def wrapper(corpora: List[TextIO]):
 
 
 if __name__ == '__main__':
-    # wrapper()
+    test()
     pass

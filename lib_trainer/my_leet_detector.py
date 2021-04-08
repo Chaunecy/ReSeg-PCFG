@@ -71,8 +71,13 @@ def get_ado(word: str):
 re_invalid = re.compile(
     r"^("
     r".{1,3}"
-    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+[a-z]+"  # except (S or D) + L
-    r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e0-9]+"  # except L + (S or D)
+    r"|[a-z]+"
+    r"|[0-9]+"
+    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"
+    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+[a-z]+"  # except (S or D) + L
+    r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"  # except L + (S or D)
+    r"|[a-z]+[0-9]+"
+    r"|[0-9]+[a-z]+"
     r"|.*[i1l|]{3,}.*"  # except il|a, il|b
     r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva)"  # except a4ever, b4ever
     r")$")
@@ -103,14 +108,10 @@ def invalid(word: str):
     :return:
     """
     lower = word.lower()
-    wlen = len(word)
     if lower in ignore_set:
         return True
     # length ~ [4, 20]
     if len(word) < 4 or len(word) > 20:
-        return True
-    # pure alphas, pure digits, or pure others
-    if limit_alpha(word):
         return True
     if word.startswith("#1") or word.endswith("#1"):
         return True
