@@ -195,7 +195,10 @@ def save_pcfg_data(base_directory, pcfg_parser, encoding, save_sensitive):
             pass
         fd = open(os.path.join(folder, "all.txt"), "w")
         for l33t, num in sorted(pcfg_parser.leet_detector.l33t_map.items(), key=lambda x: x[1], reverse=True):
-            fd.write(f"{l33t}\t{num}\n")
+            if num > 0:
+                fd.write(f"{l33t}\t{num}\n")
+            else:
+                break
         fd.close()
     except Exception as msg:
         print(msg)

@@ -71,14 +71,20 @@ def get_ado(word: str):
 re_invalid = re.compile(
     r"^("
     r".{1,3}"
+    # invalid: L, D, S
     r"|[a-z]+"
     r"|[0-9]+"
     r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"
-    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+[a-z]+"  # except (S or D) + L
-    r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"  # except L + (S or D)
+    # invalid: SD, DS, SL, LS, LD, DL
+    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+[0-9]+"
+    r"|[0-9]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"
+    r"|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+[a-z]+"
+    r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"
     r"|[a-z]+[0-9]+"
     r"|[0-9]+[a-z]+"
+    # too many i, l, 1
     r"|.*[i1l|]{3,}.*"  # except il|a, il|b
+    # forever, avoid false positives
     r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva)"  # except a4ever, b4ever
     r")$")
 
@@ -103,7 +109,7 @@ def limit_alpha(word: str):
 def invalid(word: str):
     """
     whether this word can be treated as l33t
-    There are many trade-offs, to reject false positives
+    There are many trade-offs, to avoid false positives
     :param word:
     :return:
     """

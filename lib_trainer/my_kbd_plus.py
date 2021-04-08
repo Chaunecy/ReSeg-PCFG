@@ -468,6 +468,7 @@ def test():
 def wrapper(corpora: List[TextIO]):
     am = AmericanKeyboard()
     kd = KeyboardDetection(am)
+    res = ""
     for corpus in corpora:
         sequence = 0
         parallel = 0
@@ -475,8 +476,8 @@ def wrapper(corpora: List[TextIO]):
         total = 0
         fd = corpus
         for line in fd:
-            if total % 10000 == 0:
-                print(total, file=sys.stderr)
+            if total % 100000 == 0:
+                print(f"{total}\r", file=sys.stdout)
             line = line.strip("\r\n")
             seq, _ = kd.sequence(line)
             total += 1
@@ -495,11 +496,13 @@ def wrapper(corpora: List[TextIO]):
                         vertical += 1
             pass
         total_kbd = sequence + parallel + vertical
-        print("")
-        print(f"corpus: {corpus.name}")
-        print(f"sequence: {sequence}, %: {sequence / total_kbd * 100},\n"
-              f"parallel: {parallel}, %: {parallel / total_kbd * 100},\n"
-              f"vertical: {vertical}, %: {vertical / total_kbd * 100}")
+        out = f"\ncorpus: {corpus.name}\n" \
+              f"sequence: {sequence}, %: {sequence / total_kbd * 100},\n" \
+              f"parallel: {parallel}, %: {parallel / total_kbd * 100},\n" \
+              f"vertical: {vertical}, %: {vertical / total_kbd * 100}"
+        print(out)
+        res += out
+    print(res)
 
 
 if __name__ == '__main__':
