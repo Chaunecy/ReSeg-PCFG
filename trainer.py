@@ -202,6 +202,12 @@ def parse_command_line(program_info):
         '--save-seg', help="save segments here", dest="save_seg",
         required=False, type=argparse.FileType("w"), default=None
     )
+    parser.add_argument(
+        '--skip-no-duplication-checker',
+        dest="skip_no_duplication_checker",
+        help="'no duplication' is OK",
+        required=False, type=bool, default=True
+    )
     # Parse all the args and save them    
     args = parser.parse_args()
     # Standard Options
@@ -219,6 +225,7 @@ def parse_command_line(program_info):
     # program_info['smoothing'] = args.smoothing
     program_info['coverage'] = args.coverage
     program_info['save_seg'] = args.save_seg
+    program_info['skip_no_duplication_checker'] = args.skip_no_duplication_checker
     # Sanity checking of values
     #
     # Check to make sure smoothing makes sense
@@ -272,6 +279,7 @@ def main():
         'coverage': 0.6,
         'max_len': 21,
         'save_seg': '',
+        'skip_no_duplication_checker': True,
     }
 
     print_banner()
@@ -397,7 +405,7 @@ def main():
     print()
 
     # Perform duplicate detection and warn user if no duplicates were found
-    if not file_input.duplicates_found:
+    if not program_info['skip_no_duplication_checker'] and not file_input.duplicates_found:
         print()
         print("WARNING:")
         print("    No duplicate passwords were detected in the first " +
