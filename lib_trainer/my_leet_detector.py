@@ -82,10 +82,19 @@ re_invalid = re.compile(
     r"|[a-z]+[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]+"
     r"|[a-z]+[0-9]+"
     r"|[0-9]+[a-z]+"
-    # too many i, l, 1
-    r"|.*[i1l|]{3,}.*"  # except il|a, il|b
+    # too many i, l, 1, !
+    r"|.*[i1l|!]{3,}.*"
+    r"|[a-z]{1,3}!\d+"
     # forever, avoid false positives
-    r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva)"  # except a4ever, b4ever
+    r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva)"
+    # @ is easy to generate false positives
+    r"|(\d*|[a-z]*|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]*)@(\d*|[a-z]*|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]*)"
+    # 1aa1-like 
+    r"|\d+([a-z])\5+\d+"
+    r"|\d*[a-z]{1,2}2[a-z]{1,2}\d*"
+    r"|.*@.*\..*"
+    # scentific representation
+    r"|.*e?\+\d+"
     r")$")
 
 # ignore words in this set
