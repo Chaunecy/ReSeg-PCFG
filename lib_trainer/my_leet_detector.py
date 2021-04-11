@@ -90,11 +90,11 @@ re_invalid = re.compile(
     # @ is easy to generate false positives
     r"|(\d*|[a-z]*|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]*)@(\d*|[a-z]*|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]*)"
     # 1aa1-like 
-    r"|\d+([a-z])\5+\d+"
+    r"|\d+([a-z])\5*\d+"
     r"|\d*[a-z]{1,2}2[a-z]{1,2}\d*"
     r"|.*@.*\..*"
     # scentific representation
-    r"|.*e?\+\d+"
+    r"|.*e?\+\d*"
     r")$")
 
 # ignore words in this set
