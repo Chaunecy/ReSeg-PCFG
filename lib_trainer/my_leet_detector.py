@@ -85,8 +85,8 @@ re_invalid = re.compile(
     # too many i, l, 1, !
     r"|.*[i1l|!]{3,}.*"
     r"|[a-z]{1,3}!\d+"
-    # forever, avoid false positives
-    r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva)"
+    # forever, for life, to avoid false positives
+    r"|[a-z0-9]{1,2}4(ever|life|ev|eve|eva|li|l|e)"
     # @ is easy to generate false positives
     r"|(\d*|[a-z]*|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]*)@(\d*|[a-z]*|[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]*)"
     # 1aa1-like 
