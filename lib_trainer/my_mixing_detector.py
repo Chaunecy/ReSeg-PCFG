@@ -133,6 +133,7 @@ class MixingDetector:
         self.count_alpha_masks = li2f(pcfg_parser.count_alpha_masks)
         self.count_other = li2f(pcfg_parser.count_other)
         self.count_digits = li2f(pcfg_parser.count_digits)
+        self.count_keyboards = li2f(pcfg_parser.count_keyboard)
         self.count_years = i2f(pcfg_parser.count_years)
         self.count_context_sensitive = i2f(pcfg_parser.count_context_sensitive)
         self.found_mixing = defaultdict(set)
@@ -187,8 +188,10 @@ class MixingDetector:
                         prob *= self.count_other.get(len(pwd_part), {}).get(pwd_part, 0.0)
                     elif tag == 'D':
                         prob *= self.count_digits.get(len(pwd_part), {}).get(pwd_part, 0.0)
-                    # elif tag == 'K':
-                    #     prob *= self.pcfg_parser.count_keyboard.get(len(pwd_part), {}).get(pwd_part, 0.0)
+                    # actually, passwords tagged with K, X, leet patterns will not be
+                    # treated as potential passwords containing mixture patterns
+                    elif tag == 'K':
+                        prob *= self.count_keyboards.get(len(pwd_part), {}).get(pwd_part, 0.0)
                     elif tag == 'X':
                         prob *= self.count_context_sensitive.get(pwd_part, 0.0)
                     elif tag == 'Y':
