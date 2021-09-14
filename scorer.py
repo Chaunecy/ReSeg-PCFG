@@ -172,7 +172,7 @@ class MyScorer:
         load_grammar4scorer(self, rule_directory=self.rule)
         pass
 
-    def my_calc_prob(self, pwd: str, cap: str, idx: int, root: Dict, acc_prob: float, max_prob: List[float],
+    def my_calc_prob(self, pwd: str, origin_pwd: str, cap: str, idx: int, root: Dict, acc_prob: float, max_prob: List[float],
                      max_struct: List[str]):
         if idx == len(pwd):
             if self.__STRUCT_END_SYMBOL in root:
@@ -206,11 +206,11 @@ class MyScorer:
                 for addon in [2, 3, 4, 5]:
                     if idx + addon > len(pwd):
                         continue
-                    part = pwd[idx:idx + addon]
+                    part = origin_pwd[idx:idx + addon]
                     mul_prob = self.count_context_sensitive.get(part, .0)
 
                     if mul_prob > sys.float_info.min:
-                        self.my_calc_prob(pwd, cap, idx + addon, root[terminal], acc_prob * mul_prob, max_prob,
+                        self.my_calc_prob(pwd, origin_pwd, cap, idx + addon, root[terminal], acc_prob * mul_prob, max_prob,
                                           max_struct)
                 continue
             elif tag != "END":
@@ -218,14 +218,14 @@ class MyScorer:
                 end_idx = idx + _len
                 if end_idx > len(pwd):
                     continue
-                part = pwd[idx: end_idx]
+                part = origin_pwd[idx: end_idx]
                 mul_prob = self.all_terminals[terminal].get(part, .0)
                 pass
             else:
                 continue
             if mul_prob > sys.float_info.min:
                 tmp_acc_prob = acc_prob * mul_prob
-                self.my_calc_prob(pwd, cap, end_idx, root[terminal], tmp_acc_prob, max_prob, max_struct)
+                self.my_calc_prob(pwd, origin_pwd, cap, end_idx, root[terminal], tmp_acc_prob, max_prob, max_struct)
             pass
         pass
 
@@ -239,7 +239,7 @@ class MyScorer:
                 cap += "L"
         max_prob = [sys.float_info.min]
         base_struct = [""]
-        self.my_calc_prob(pwd.lower(), cap, 0, self.base_struct_tree, 1.0, max_prob, base_struct)
+        self.my_calc_prob(pwd.lower(), pwd, cap, 0, self.base_struct_tree, 1.0, max_prob, base_struct)
         return -log2(max(max_prob[0], self.minimal_prob))
 
     def minus_log2_prob_with_struct(self, pwd: str) -> Tuple[float, str]:
@@ -251,7 +251,7 @@ class MyScorer:
                 cap += "L"
         max_prob = [sys.float_info.min]
         base_struct = [""]
-        self.my_calc_prob(pwd.lower(), cap, 0, self.base_struct_tree, 1.0, max_prob, base_struct)
+        self.my_calc_prob(pwd.lower(), pwd, cap, 0, self.base_struct_tree, 1.0, max_prob, base_struct)
         return -log2(max(max_prob[0], self.minimal_prob)), base_struct[0]
         pass
 
@@ -416,7 +416,7 @@ def main():
 
 
 def test():
-    pcfg_scorer = MyScorer(rule="/home/cw/Documents/Experiments/SegLab/Rules/DRed/rockyou")
+    pcfg_scorer = MyScorer(rule="/home/cw/Documents/Experiments/GradPaper/Rules/rockyou")
     usr_in = ""
     while usr_in != "exit":
         usr_in = input("Type in password: ")
