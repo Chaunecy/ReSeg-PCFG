@@ -1,7 +1,7 @@
 import argparse
 import sys
+from collections import defaultdict
 
-import matplotlib.pyplot as plt
 from bisect import bisect_right
 from math import log2
 from typing import TextIO
@@ -17,32 +17,8 @@ def rand_key(a_dict: dict):
     return np.random.choice(list(a_dict.keys()), p=np.array(list(a_dict.values())).ravel())
 
 
-def gen_guess_crack(estimations: [int], upper_bound=10 ** 20):
-    estimations.sort()
-    gc_pairs = {}
-    for idx, est in enumerate(estimations):
-        if est < upper_bound:
-            gc_pairs[est] = idx
-        else:
-            break
-    return list(gc_pairs.keys()), list(gc_pairs.values())
-
-
-def draw_gc_curve(guesses: [int], cracked: [float], label, save2file: str):
-    if label:
-        plt.plot(guesses, cracked, label=label)
-        plt.legend(loc=2)
-    else:
-        plt.plot(guesses, cracked)
-    plt.xscale("log")
-    plt.grid(ls="--")
-    plt.xlabel('Guesses')
-    plt.ylabel('Cracked(%)')
-    plt.savefig(save2file)
-
-
 class WeirPCFGv41:
-    def __init__(self, rule: str, test: str, sample_size, fout_gc: TextIO, save_figure):
+    def __init__(self, rule: str, test: str, sample_size, fout_gc: TextIO):
         """
 
         :param rule: rule set
@@ -62,7 +38,6 @@ class WeirPCFGv41:
         self.__pcfgScorer.create_multiword_detector()
         self.__pcfgScorer.create_omen_scorer(base_directory=rule, max_omen_level=9)
         self.__fout_gc = fout_gc
-        self.__save_figure = save_figure
         pass
 
     def __generate_one(self):
@@ -105,26 +80,31 @@ class WeirPCFGv41:
         positions = (2 ** (log_probs - logn)).cumsum()
         estimations = []
         print("Parsing test set...", file=sys.stderr)
-        with open(self.__test_set, "r") as fin:
+        pwd_set = defaultdict(int)
+        with open(self.__test_set, 'r') as fin:
             for line in fin:
-                line = line.strip("\r\n")
-                try:
-                    _, _, prob, _ = self.__pcfgScorer.parse(line)
-                    log_prob = -log2(prob)
-                except ValueError:
-                    log_prob = float("inf")
-                idx = bisect_right(log_probs, log_prob)
-                pos = positions[idx - 1] if idx > 0 else 0
-                estimations.append(int(pos))
+                line = line.strip('\r\n')
+                pwd_set[line] += 1
+        scored = {}
+        total = sum(pwd_set.values())
+        for pwd, cnt in pwd_set.items():
+            _, _, prob, _ = self.__pcfgScorer.parse(pwd)
+            prob = max(sys.float_info.min, prob)
+            log_prob = -log2(prob)
+            idx = bisect_right(log_probs, log_prob)
+            pos = positions[idx - 1] if idx > 0 else 0
+            scored[pwd] = (cnt, log_prob, pos)
+        del pwd_set
+        cracked, prev_rank = 0, 0
+        fd_out = self.__fout_gc
+        for pwd, (cnt, log_prob, pos) in sorted(scored.items(), key=lambda x: x[1][1]):
+            cracked += cnt
+            rank = max(int(pos + .5), prev_rank + 1)
+            prev_rank = rank
+            fd_out.write(f"{pwd}\t{log_prob:.8f}\t{cnt}\t{rank}\t{cracked}\t{cracked / total * 100:.2f}\n")
+            pass
         print("Parsing test set done!", file=sys.stderr)
-        guesses, cracked = gen_guess_crack(estimations)
-        for g, c in zip(guesses, cracked):
-            self.__fout_gc.write(f"{g} : {c}\n")
         self.__fout_gc.flush()
-        if self.__save_figure is not None:
-            draw_gc_curve(guesses, cracked, "", self.__save_figure)
-        print(f"All done! You may find the figure here: {self.__save_figure},"
-              f" and guess-crack file here: {self.__fout_gc.name}")
 
     def __del__(self):
         self.__fout_gc.close()
@@ -139,19 +119,10 @@ if __name__ == '__main__':
     cli_parser.add_argument("--guess-crack-file", "-f", dest="fout_gc", required=True,
                             type=argparse.FileType("w"), default=sys.stdout,
                             help="save guess-crack info here, use \"-\" to print into stdout")
-    cli_parser.add_argument("--guess-crack-curve", "-c", dest="gc_curve", required=False, type=str, default=None,
-                            help="curve file will be put here, with suffix \".pdf\", use --img to "
-                                 "generate image with suffix \"*.png\"")
-    cli_parser.add_argument("--img", "-i", dest="suffix", required=False, default=".pdf", action="store_const",
-                            const=".png",
-                            help="store the picture with suffix \".png\"")
     args = cli_parser.parse_args()
     print("WARNING: This method is DEPRECATED. If you want to use Monte Carlo method, try scorer.py please!",
           file=sys.stderr)
     weirPCFGv41 = WeirPCFGv41(rule=args.abs_rule_set, test=args.abs_test_set, sample_size=args.sample_size,
-                              fout_gc=args.fout_gc,
-                              save_figure=None if args.gc_curve is None else f"{args.gc_curve}{args.suffix}")
-
-    # weirPCFGv41.sample()
+                              fout_gc=args.fout_gc)
     weirPCFGv41.evaluate()
     pass
