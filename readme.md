@@ -1,5 +1,3 @@
-This is the source code of ReSeg-PCFG.
-
 PCFG = Probabilistic Context Free Grammar
 
 
