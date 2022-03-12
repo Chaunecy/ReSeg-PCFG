@@ -9,13 +9,6 @@ from typing import List, Tuple, TextIO, Any, Dict
 
 from lib_scorer.grammar_io import load_grammar as load_grammar4scorer
 
-"""
-Note that OMEN scorer is not considered here
-if prob for OMEN is not 0, use lib_scorer please
-WARNING: 
-L33t has not been considered. so passwords with l33t will not be correctly evaluated.
-"""
-
 
 def extend_dict(counter: Counter):
     items = list(counter.keys())
